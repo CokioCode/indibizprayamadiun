@@ -1,4 +1,4 @@
-import { prisma } from "../../integrations";
+import prisma from "../../integrations/prisma";
 import {
   comparePassword,
   signToken,
