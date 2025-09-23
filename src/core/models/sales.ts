@@ -36,6 +36,7 @@ export const SalesModel = {
       const data = await prisma.sales.findMany({
         select: {
           id: true,
+          nama: true,
           kode_sales: true,
           agency: {
             select: {
