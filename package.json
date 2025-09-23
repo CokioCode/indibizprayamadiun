@@ -5,7 +5,8 @@
     "db:seed": "tsx prisma/seed/index.ts",
     "db:migrate": "bunx prisma migrate dev --name",
     "db:generate": "bunx prisma generate",
-    "tunels": "sudo cloudflared tunnel --url http://0.0.0.0:8080"
+    "tunels": "sudo cloudflared tunnel --url http://0.0.0.0:8080",
+    "build": "bun build src/index.ts --outdir dist --target node"
   },
   "dependencies": {
     "@prisma/client": "^6.16.2",
