@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const JenisPromoEnum = z.enum(["DISKON", "CASHBACK", "BONUS", "DLL"]);
+export const JenisPromoEnum = z.enumType(["DISKON", "CASHBACK", "BONUS", "DLL"]);
 export type JenisPromo = z.infer<typeof JenisPromoEnum>;
 
 export const promoSchemaCreate = z

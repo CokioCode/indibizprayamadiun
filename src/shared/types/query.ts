@@ -18,7 +18,7 @@ export const paginationSchema = z.object({
     .enum(["createdAt", "updatedAt", "username", "email"])
     .optional()
     .default("createdAt"),
-  sortOrder: z.enum(["asc", "desc"]).optional().default("desc"),
+  sortOrder: z.enumType(["asc", "desc"]).optional().default("desc"),
 });
 
 export const idParamSchema = z.object({

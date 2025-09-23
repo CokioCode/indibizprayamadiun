@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const StatusSalesEnum = z.enum(["ACTIVE", "DELETED"]);
+export const StatusSalesEnum = z.enumType(["ACTIVE", "DELETED"]);
 export type StatusSales = z.infer<typeof StatusSalesEnum>;
 
 export const createSalesSchema = z.object({
