@@ -1,6 +1,6 @@
-import { prisma } from "@/integrations";
-import { ConflictError, NotFoundError, BadRequestError } from "@/shared";
-import { CreateSalesInput, UpdateSalesInput } from "@/shared/types/sales";
+import { prisma } from "../../integrations";
+import { ConflictError, NotFoundError, BadRequestError } from "../../shared";
+import { CreateSalesInput, UpdateSalesInput } from "../../shared/types/sales";
 
 export const SalesModel = {
   async index({ page = 1, limit = 5 }: { page?: number; limit?: number } = {}) {

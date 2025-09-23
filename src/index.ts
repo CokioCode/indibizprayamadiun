@@ -1,6 +1,6 @@
 import { Hono } from "hono";
-import { routes } from "@/core";
-import { errorHandler } from "@/core/middlewares/errorHandler";
+import { routes } from "./core";
+import { errorHandler } from "./core/middlewares/errorHandler";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 

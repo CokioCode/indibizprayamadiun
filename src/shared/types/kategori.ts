@@ -8,12 +8,3 @@ export const kategoriSchema = z.object({
 });
 
 export type KategoriInput = z.infer<typeof kategoriSchema>;
-
-export const kategoriUpdateSchema = z.object({
-  nama: z
-    .string()
-    .min(1, "Nama kategori harus diisi")
-    .max(100, "Nama kategori maksimal 100 karakter"),
-});
-
-export type KategoriUpdateInput = z.infer<typeof kategoriUpdateSchema>;

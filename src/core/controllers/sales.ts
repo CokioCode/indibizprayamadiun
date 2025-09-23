@@ -1,7 +1,11 @@
-import { asyncHandler, ResponseHelper, PaginationHelper } from "@/shared";
+import {
+  asyncHandler,
+  ResponseHelper,
+  PaginationHelper,
+} from "../../shared/utils";
 import { Context } from "hono";
 import { SalesModel } from "../models";
-import { CreateSalesInput, UpdateSalesInput } from "@/shared/types/sales";
+import { CreateSalesInput, UpdateSalesInput } from "../../shared/types/sales";
 
 export const salesController = {
   index: asyncHandler(async (c: Context): Promise<Response> => {

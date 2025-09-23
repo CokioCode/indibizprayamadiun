@@ -1,6 +1,6 @@
-import { prisma } from "@/integrations";
-import { ConflictError, NotFoundError, BadRequestError } from "@/shared";
-import { PromoInputCreate, PromoInputUpdate } from "@/shared/types/promo";
+import { prisma } from "../../integrations";
+import { ConflictError, NotFoundError, BadRequestError } from "../../shared";
+import { PromoInputCreate, PromoInputUpdate } from "../../shared/types/promo";
 
 export const PromoModel = {
   async index({ page = 1, limit = 5 }: { page?: number; limit?: number } = {}) {

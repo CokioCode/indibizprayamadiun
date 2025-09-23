@@ -1,7 +1,11 @@
-import { asyncHandler, PaginationHelper, ResponseHelper } from "@/shared";
+import {
+  asyncHandler,
+  PaginationHelper,
+  ResponseHelper,
+} from "../../shared/utils";
 import { Context } from "hono";
 import { CategoriModel } from "../models";
-import { KategoriInput } from "@/shared/types/kategori";
+import { KategoriInput } from "../../shared/types/kategori";
 
 export const kategoriController = {
   index: asyncHandler(async (c: Context): Promise<Response> => {

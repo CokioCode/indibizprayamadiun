@@ -1,7 +1,7 @@
 import { Hono } from "hono";
-import { datelController } from "@/core/controllers/datel";
-import { validateBody } from "@/core/middlewares/validation";
-import { datelSchemaCreate, datelSchemaUpdate } from "@/shared/types/datel";
+import { datelController } from "../../core/controllers/datel";
+import { validateBody } from "../../core/middlewares/validation";
+import { datelSchemaCreate, datelSchemaUpdate } from "../../shared/types/datel";
 
 const datelRoutes = new Hono();
 

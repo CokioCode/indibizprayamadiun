@@ -1,10 +1,10 @@
-import { prisma } from "@/integrations";
-import { ConflictError, NotFoundError, BadRequestError } from "@/shared";
-import MegaUploadUtils from "@/integrations/mega";
+import { prisma } from "../../integrations";
+import { ConflictError, NotFoundError, BadRequestError } from "../../shared";
+import MegaUploadUtils from "../../integrations/mega";
 import type {
   CreateRegistrasiIndibizInput,
   UpdateRegistrasiIndibizInput,
-} from "@/shared/types/registrasi_indibiz";
+} from "../../shared/types/registrasi_indibiz";
 
 const MEGA_CONFIG = {
   email: process.env.MEGA_EMAIL || "your-mega-email@example.com",
@@ -592,7 +592,6 @@ class RegistrasiIndibizService {
         data.datel_id.trim() === "" ||
         typeof data.paket_id !== "string" ||
         data.paket_id.trim() === "" ||
-        typeof data.sales_id !== "string" ||
         data.sales_id.trim() === "" ||
         typeof data.no_hp_1 !== "string" ||
         data.no_hp_1.trim() === "" ||
@@ -661,7 +660,7 @@ class RegistrasiIndibizService {
           nama: data.nama.trim(),
           datel_id: data.datel_id.trim(),
           paket_id: data.paket_id.trim(),
-          sales_id: data.sales_id.trim(),
+          sales_id: data.sales_id.trim() ?? "",
           no_hp_1: data.no_hp_1.trim(),
           no_hp_2: data.no_hp_2?.trim() ?? "",
           kordinat: data.kordinat.trim(),

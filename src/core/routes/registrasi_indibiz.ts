@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { registrasiIndibizController } from "@/core/controllers/registrasi_indibiz";
+import { registrasiIndibizController } from "../../core/controllers/registrasi_indibiz";
 
 const registrasiIndibizRoutes = new Hono();
 

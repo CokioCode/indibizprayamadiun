@@ -1,6 +1,6 @@
 import { Telegraf, Context, session, Markup } from "telegraf";
-import { prisma } from "@/integrations";
-import MegaUploadUtils from "@/integrations/mega";
+import { prisma } from "src/integrations";
+import MegaUploadUtils from "src/integrations/mega";
 
 enum FormStep {
   IDLE = 0,

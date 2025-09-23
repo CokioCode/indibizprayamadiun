@@ -1,5 +1,5 @@
 import { Context, Next } from "hono";
-import { ValidationError } from "@/shared";
+import { ValidationError } from "../../shared";
 import z from "zod";
 
 export const validateBody = (schema: z.ZodSchema) => {

@@ -1,6 +1,6 @@
-import { prisma } from "@/integrations";
-import { ConflictError, NotFoundError, BadRequestError } from "@/shared";
-import { PaketInputCreate, PaketInputUpdate } from "@/shared/types/paket";
+import { prisma } from "../../integrations";
+import { ConflictError, NotFoundError, BadRequestError } from "../../shared";
+import { PaketInputCreate, PaketInputUpdate } from "../../shared/types/paket";
 import { Decimal } from "@prisma/client/runtime/library";
 
 export const PaketModel = {

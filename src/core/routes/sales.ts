@@ -1,7 +1,7 @@
 import { Hono } from "hono";
-import { salesController } from "@/core";
-import { validateBody } from "@/core/middlewares/validation";
-import { createSalesSchema, updateSalesSchema } from "@/shared/types/sales";
+import { salesController } from "../../core";
+import { validateBody } from "../../core/middlewares/validation";
+import { createSalesSchema, updateSalesSchema } from "../../shared/types/sales";
 
 const salesRoutes = new Hono();
 

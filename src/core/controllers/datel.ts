@@ -1,7 +1,11 @@
-import { asyncHandler, PaginationHelper, ResponseHelper } from "@/shared";
+import {
+  asyncHandler,
+  PaginationHelper,
+  ResponseHelper,
+} from "../../shared/utils";
 import { Context } from "hono";
 import { DatelModel } from "../models";
-import { DatelInputCreate, DatelInputUpdate } from "@/shared/types/datel";
+import { DatelInputCreate, DatelInputUpdate } from "../../shared/types/datel";
 
 export const datelController = {
   index: asyncHandler(async (c: Context): Promise<Response> => {

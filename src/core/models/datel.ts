@@ -1,6 +1,6 @@
-import { prisma } from "@/integrations";
-import { ConflictError, NotFoundError, BadRequestError } from "@/shared";
-import { DatelInputCreate, DatelInputUpdate } from "@/shared/types/datel";
+import { prisma } from "../../integrations";
+import { ConflictError, NotFoundError, BadRequestError } from "../../shared";
+import { DatelInputCreate, DatelInputUpdate } from "../../shared/types/datel";
 
 export const DatelModel = {
   async index({ page = 1, limit = 5 }: { page?: number; limit?: number } = {}) {

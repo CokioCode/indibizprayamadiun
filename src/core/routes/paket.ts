@@ -1,7 +1,7 @@
 import { Hono } from "hono";
-import { paketController } from "@/core";
-import { validateBody } from "@/core/middlewares/validation";
-import { paketSchemaCreate, paketSchemaUpdate } from "@/shared/types/paket";
+import { paketController } from "../../core";
+import { validateBody } from "../../core/middlewares/validation";
+import { paketSchemaCreate, paketSchemaUpdate } from "../../shared/types/paket";
 
 const paketRoutes = new Hono();
 

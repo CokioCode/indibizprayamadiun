@@ -1,7 +1,7 @@
+import { asyncHandler, ResponseHelper } from "../../shared/utils";
 import { Context } from "hono";
-import { AuthModel } from "@/core";
-import { ResponseHelper, asyncHandler } from "@/shared";
-import { LoginInput } from "@/shared/types/auth";
+import { AuthModel } from "../models";
+import { LoginInput } from "../../shared/types/auth";
 
 export const authController = {
   login: asyncHandler(async (c: Context) => {

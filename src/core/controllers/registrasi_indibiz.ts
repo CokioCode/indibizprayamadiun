@@ -1,6 +1,6 @@
-import { asyncHandler, PaginationHelper, ResponseHelper } from "@/shared";
+import { asyncHandler, PaginationHelper, ResponseHelper } from "../../shared";
 import { Context } from "hono";
-import { RegistrasiIndibizModel } from "@/core/models/registrasi_indibiz";
+import { RegistrasiIndibizModel } from "../../core/models/registrasi_indibiz";
 
 export const registrasiIndibizController = {
   index: asyncHandler(async (c: Context): Promise<Response> => {

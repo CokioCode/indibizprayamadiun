@@ -1,5 +1,5 @@
 import { Context, Next } from "hono";
-import { AppError, ResponseHelper } from "@/shared";
+import { AppError, ResponseHelper } from "../../shared";
 import { ContentfulStatusCode } from "hono/utils/http-status";
 
 export const errorHandler = (error: any, c: Context) => {
@@ -54,10 +54,10 @@ export const errorHandler = (error: any, c: Context) => {
     return ResponseHelper.error(c, "Invalid or expired token", 401);
   }
 
-  // if (error instanceof SyntaxError && error.message.includes("JSON")) {
-  //   console.log("Handling JSON parsing error");
-  //   return ResponseHelper.error(c, "Invalid JSON format", 400);
-  // }
+  if (error instanceof SyntaxError && error.message.includes("JSON")) {
+    console.log("Handling JSON parsing error");
+    return ResponseHelper.error(c, "Invalid JSON format", 400);
+  }
 
   console.log("Handling unknown error - returning 500");
   console.error(error);

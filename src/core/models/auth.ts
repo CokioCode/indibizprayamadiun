@@ -1,10 +1,10 @@
-import { prisma } from "@/integrations";
+import { prisma } from "../../integrations";
 import {
   comparePassword,
   signToken,
   UnauthorizedError,
   NotFoundError,
-} from "@/shared";
+} from "../../shared";
 
 export const AuthModel = {
   async login(data: { username: string; password: string }) {
