@@ -1,10 +1,9 @@
 {
   "name": "hono-indibizprayamadiun",
   "scripts": {
-    "dev": "bun run --hot src/index.ts",
-    "bot": "bun run --hot bot/index.ts",
-    "db:migrate": "bunx prisma migrate dev --name",
+    "dev": "bun run db:generate & bun run --hot src/index.ts & bun run --hot bot/index.ts",
     "db:seed": "tsx prisma/seed/index.ts",
+    "db:migrate": "bunx prisma migrate dev --name",
     "db:generate": "bunx prisma generate",
     "tunels": "sudo cloudflared tunnel --url http://0.0.0.0:8080"
   },
