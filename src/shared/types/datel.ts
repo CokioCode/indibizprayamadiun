@@ -1,9 +1,9 @@
 import { z } from "zod";
 
-export const KategoriDatelEnum = z.enumType(["HERO", "NON_HERO"]);
+export const KategoriDatelEnum = z.enum(["HERO", "NON_HERO"]);
 export type KategoriDatel = z.infer<typeof KategoriDatelEnum>;
 
-export const SubAreaEnum = z.enumType(["INNER", "OUTER"]);
+export const SubAreaEnum = z.enum(["INNER", "OUTER"]);
 export type SubArea = z.infer<typeof SubAreaEnum>;
 
 export const datelSchemaCreate = z.object({
@@ -13,6 +13,7 @@ export const datelSchemaCreate = z.object({
   wilayah: z.string(),
   sub_area: SubAreaEnum,
 });
+
 export const datelSchemaUpdate = datelSchemaCreate.partial();
 
 export type DatelInputCreate = z.infer<typeof datelSchemaCreate>;
