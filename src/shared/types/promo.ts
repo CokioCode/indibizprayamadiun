@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { TipePromoEnum } from "./enum";
+import { TipePromoEnum } from "./enum.js";
 
 export const promoSchemaCreate = z
   .object({
