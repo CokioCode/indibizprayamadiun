@@ -1,3 +1,4 @@
+import * as XLSX from "xlsx";
 import {
   asyncHandler,
   ResponseHelper,
@@ -37,6 +38,10 @@ export const agencController = {
     const data = await AgencModel.shows(id);
     return ResponseHelper.success(c, data, "Berhasil mengambil detail agenc");
   }),
+  list: asyncHandler(async (c: Context): Promise<Response> => {
+    const data = await AgencModel.list();
+    return ResponseHelper.success(c, data, "Berhasil mengambil list agenc");
+  }),
   create: asyncHandler(async (c: Context): Promise<Response> => {
     const validatedBody = c.get("validatedBody") as AgencInput;
     const created = await AgencModel.create(validatedBody);
@@ -52,5 +57,18 @@ export const agencController = {
     const id = c.req.param("id");
     await AgencModel.destroy(id);
     return ResponseHelper.success(c, null, "Berhasil menghapus agenc");
+  }),
+    import: asyncHandler(async (c: Context): Promise<Response> => {
+    const body = await c.req.parseBody();
+    const file = body["file"] as File;
+
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const workbook = XLSX.read(buffer, { type: "buffer" });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const data = XLSX.utils.sheet_to_json(sheet);
+
+    await AgencModel.importExcel(data);
+
+    return ResponseHelper.success(c, null, "Berhasil import agenc");
   }),
 };

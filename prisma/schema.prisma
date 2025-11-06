@@ -6,13 +6,12 @@
 
 generator client {
   provider = "prisma-client-js"
-  output   = "../src/generated/client"
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  // directUrl = env("DIRECT_URL")
 }
 
 model Auth {
@@ -21,17 +20,6 @@ model Auth {
   password String
 
   @@map("auth")
-}
-
-model Kategori {
-  id         String   @id @default(uuid())
-  nama       String   @unique
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
-
-  paket_categories PaketKategori[]
-
-  @@map("kategori")
 }
 
 model Agenc {
@@ -45,99 +33,145 @@ model Agenc {
   @@map("agenc")
 }
 
-model Datel {
-  id         String        @id @default(uuid())
-  kode_sto   String        @unique
-  nama       String
-  categori   KategoriDatel
-  wilayah    String
-  sub_area   SubArea
-  created_at DateTime      @default(now())
-  updated_at DateTime      @updatedAt
-
-  sales              Sales[]
-  registrasi_indibiz RegistrasiIndibiz[]
-
-  @@map("datel")
-}
-
-model Promo {
-  id        String     @id @default(uuid())
-  nama      String     @unique
-  deskripsi String
-  jenis     JenisPromo
-  diskon    Decimal    @db.Decimal(5, 2)
-  mulai     DateTime
-  akhir     DateTime
-  is_global Boolean
-
-  paket_promos PaketPromo[]
+model Wilayah {
+  id   String @id @default(uuid())
+  nama String @unique
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
-  @@map("promo")
+  stos               WilayahSto[]
+  registrasi_indibiz RegistrasiIndibiz[]
+  sales              Sales[]
+
+  @@map("wilayah")
+}
+
+model Sto {
+  id           String @id @default(uuid())
+  name         String @unique
+  abbreviation String
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  wilayahs WilayahSto[]
+  sales    Sales[]
+
+  @@map("sto")
+}
+
+model WilayahSto {
+  id         String @id @default(uuid())
+  wilayah_id String
+  sto_id     String
+
+  wilayah Wilayah @relation(fields: [wilayah_id], references: [id], onDelete: Cascade)
+  sto     Sto     @relation(fields: [sto_id], references: [id], onDelete: Cascade)
+
+  created_at DateTime @default(now())
+
+  @@unique([wilayah_id, sto_id])
+  @@map("wilayah_sto")
 }
 
 model Paket {
-  id          String  @id @default(uuid())
-  nama        String  @unique
-  bandwith    Int
-  price       Decimal @db.Decimal(12, 2)
-  price_psb   Decimal @db.Decimal(12, 2)
-  ppn         Int
-  final_price Decimal @db.Decimal(12, 2)
+  id          String         @id @default(cuid())
+  nama        String
+  kode        String?        @unique
+  kategori    KategoriPaket?
+  ratio       Ratio?
+  jenis_paket JenisPaket
+  bandwidth   Int
+  ont_type    TipeONT?
+  harga       Decimal        @db.Decimal(10, 2)
+  harga_psb   Decimal        @db.Decimal(10, 2)
+  total       Decimal        @db.Decimal(10, 2)
+  harga_coret Decimal?       @db.Decimal(10, 2)
+  aktif       Boolean        @default(true)
+  created_at  DateTime       @default(now())
+  updated_at  DateTime       @updatedAt
 
-  paket_categories   PaketKategori[]
-  paket_promos       PaketPromo[]
+  // Many-to-many implicit relation to Prodigi
+  prodigis           Prodigi[]
+  promo_pakets       PromoPaket[]
   registrasi_indibiz RegistrasiIndibiz[]
 
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
-
+  @@index([kategori])
+  @@index([bandwidth])
+  @@index([jenis_paket])
   @@map("paket")
 }
 
-model PaketKategori {
-  id          String @id @default(uuid())
-  paket_id    String
-  kategori_id String
-
-  paket    Paket    @relation(fields: [paket_id], references: [id], onDelete: Cascade)
-  kategori Kategori @relation(fields: [kategori_id], references: [id], onDelete: Cascade)
-
+model Prodigi {
+  id         String   @id @default(cuid())
+  nama       String
+  harga      Decimal  @db.Decimal(10, 2)
+  aktif      Boolean  @default(true)
   created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
-  @@unique([paket_id, kategori_id])
-  @@map("paket_kategori")
+  // Many-to-many implicit relation to Paket
+  pakets     Paket[]
+
+  @@index([nama])
+  @@map("prodigi")
 }
 
-model PaketPromo {
-  id       String @id @default(uuid())
-  paket_id String
-  promo_id String
+model Promo {
+  id                 String    @id @default(cuid())
+  nama               String
+  deskripsi          String?
+  tipe_promo         TipePromo
+  diskon_persen      Decimal?  @db.Decimal(5, 2)
+  diskon_nominal     Decimal?  @db.Decimal(10, 2)
+  psb_normal         Decimal?  @default(500.000) @db.Decimal(10, 2)
+  psb_diskon_persen  Decimal?  @default(70) @db.Decimal(5, 2)
+  psb_setelah_diskon Decimal?  @default(150.000) @db.Decimal(10, 2)
+  tanggal_mulai      DateTime
+  tanggal_selesai    DateTime
+  aktif              Boolean   @default(true)
+  is_global          Boolean   @default(false)
+  created_at         DateTime  @default(now())
+  updated_at         DateTime  @updatedAt
 
-  paket Paket @relation(fields: [paket_id], references: [id], onDelete: Cascade)
+  promo_pakets PromoPaket[]
+
+  @@index([tanggal_mulai, tanggal_selesai])
+  @@map("promo")
+}
+
+model PromoPaket {
+  id          String   @id @default(cuid())
+  promo_id    String
+  paket_id    String
+  harga_coret Decimal? @db.Decimal(10, 2)
+  diskon_persen  Decimal? @db.Decimal(5, 2)
+  diskon_nominal Decimal? @db.Decimal(10, 2)
+
   promo Promo @relation(fields: [promo_id], references: [id], onDelete: Cascade)
+  paket Paket @relation(fields: [paket_id], references: [id], onDelete: Cascade)
 
-  created_at DateTime @default(now())
-
-  @@unique([paket_id, promo_id])
-  @@map("paket_promo")
+  @@unique([promo_id, paket_id])
+  @@map("promo_paket")
 }
 
 model Sales {
   id          String      @id @default(uuid())
   nama        String      @unique
-  kode_sales  String
-  email       String      @unique
+  kode_sales  String?
+  email       String?     @unique
   status      StatusSales
   agency_id   String
-  datel_id    String
+  wilayah_id  String?
+  sto_id      String?
   kat_umur_sa DateTime    @db.Date()
+  tgl_reg     DateTime    @db.Date()
 
-  agency             Agenc               @relation(fields: [agency_id], references: [id])
-  datel              Datel               @relation(fields: [datel_id], references: [id])
+  wilayah Wilayah? @relation(fields: [wilayah_id], references: [id])
+  agency  Agenc    @relation(fields: [agency_id], references: [id])
+  sto     Sto?     @relation(fields: [sto_id], references: [id])
+
   registrasi_indibiz RegistrasiIndibiz[]
 
   created_at DateTime @default(now())
@@ -147,27 +181,31 @@ model Sales {
 }
 
 model RegistrasiIndibiz {
-  id          String @id @default(uuid())
+  id          String    @id @default(uuid())
   nama        String
-  datel_id    String
+  wilayah_id  String
   paket_id    String
   sales_id    String
   no_hp_1     String
-  no_hp_2     String
-  kordinat    String
+  no_hp_2     String?
+  kordinat    String?
   alamat      String
   nama_pic    String
   ttl_pic     String
   no_ktp      String
   email       String
+  nomer_ao    String?
+  status      StatusAo? 
+  keterangan  String?
   foto_ktp    String
   foto_selfie String
   bukti_usaha String
   bukti_niwp  String
+  foto_lokasi String?
 
-  datel Datel @relation(fields: [datel_id], references: [id])
-  paket Paket @relation(fields: [paket_id], references: [id])
-  sales Sales @relation(fields: [sales_id], references: [id])
+  wilayah Wilayah @relation(fields: [wilayah_id], references: [id])
+  paket   Paket   @relation(fields: [paket_id], references: [id])
+  sales   Sales   @relation(fields: [sales_id], references: [id])
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
@@ -175,16 +213,45 @@ model RegistrasiIndibiz {
   @@map("registrasi_indibiz")
 }
 
+enum KategoriPaket {
+  HSI_BISNIS_1_1 // HSI Bisnis ratio 1:1
+  HSI_BISNIS_1_2 // HSI Bisnis ratio 1:2
+  HSI_BASIC_1_2 // HSI Basic ratio 1:2
+  RETENSI_1_1 // Paket Retensi ratio 1:1
+  RETENSI_1_2 // Paket Retensi ratio 1:2
+  AKUISISI_1_1 // Paket Akuisisi ratio 1:1
+  AKUISISI_1_2 // Paket Akuisisi ratio 1:2
+}
+
+enum JenisPaket {
+  INET_ONLY // Internet Only (tanpa add-on)
+  INET_PRODIGI // Internet + Prodigi (NETMONX, OCA, dll)
+  INET_BASIC // Internet Basic + CCTV Antarez Easy
+  VOICE // Paket Voice/Telepon
+  USEETV // Paket TV
+}
+
+enum Ratio {
+  RATIO_1_1 // 1:1 (Dedicated)
+  RATIO_1_2 // 1:2 (Up to)
+}
+
+enum TipeONT {
+  STANDARD // ONT Standard
+  DUAL_BAND // ONT Dual Band
+  PREMIUM // ONT Premium
+}
+
+enum TipePromo {
+  DISKON_PERSEN // Diskon persentase (misal: 10% dari harga)
+  DISKON_NOMINAL // Diskon nominal tetap (misal: potongan 50rb)
+  DISKON_PSB // Diskon khusus untuk biaya PSB
+  COMBO // Kombinasi diskon paket + PSB
+}
+
 enum StatusSales {
   ACTIVE
   DELETED
-}
-
-enum JenisPromo {
-  DISKON
-  CASHBACK
-  BONUS
-  DLL
 }
 
 enum KategoriDatel {
@@ -195,4 +262,21 @@ enum KategoriDatel {
 enum SubArea {
   INNER
   OUTER
+}
+
+enum StatusAo {
+  PS
+  CANCEL
+  KENDALA
+  REVOKE
+  QC1
+  PI
+  FALLOUT
+  WFM_UNSC
+  QC2_FCC
+  PAPERLESS
+  SURVER
+  DECLINE_FCC
+  PT3_WAITING_AKTIVASI
+  FOLLOWUP_TO_COMPLETE
 }

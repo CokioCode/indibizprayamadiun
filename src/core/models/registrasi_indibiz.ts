@@ -1,10 +1,14 @@
-import { prisma } from "../../integrations";
-import { ConflictError, NotFoundError, BadRequestError } from "../../shared";
-import MegaUploadUtils from "../../integrations/mega";
+import prisma from "../../integrations/prisma/index.js";
+import MegaUploadUtils, { megaClient } from "../../integrations/mega/index.js";
 import type {
   CreateRegistrasiIndibizInput,
   UpdateRegistrasiIndibizInput,
-} from "../../shared/types/registrasi_indibiz";
+} from "../../shared/types/registrasi_indibiz.js";
+import {
+  BadRequestError,
+  NotFoundError,
+  ConflictError,
+} from "../../shared/utils/error.js";
 
 const MEGA_CONFIG = {
   email: process.env.MEGA_EMAIL || "your-mega-email@example.com",
@@ -16,27 +20,25 @@ class RegistrasiIndibizService {
   private megaUploader: MegaUploadUtils;
 
   constructor() {
-    this.megaUploader = new MegaUploadUtils(
-      MEGA_CONFIG.email,
-      MEGA_CONFIG.password
-    );
+    this.megaUploader = megaClient;
+    // warm up login asynchronously; errors will be retried lazily on first real upload
+    this.initializeMega().catch(() => {});
   }
 
   private async initializeMega(): Promise<void> {
     try {
       if (!this.megaUploader.isLoggedIn) {
-        console.log("🔑 Initializing MEGA login...");
         const loginSuccess = await this.megaUploader.login();
         if (!loginSuccess) {
           throw new Error("MEGA login failed");
         }
-        console.log("✅ MEGA login successful");
+        console.log("MEGA login successful");
       } else {
-        console.log("✅ MEGA already logged in");
+        console.log("MEGA already logged in");
       }
     } catch (error) {
       console.error("Failed to initialize MEGA:", error);
-      // Reset login state on failure
+
       this.megaUploader.isLoggedIn = false;
       throw new Error(
         `Gagal koneksi ke cloud storage: ${(error as Error).message}`
@@ -45,7 +47,6 @@ class RegistrasiIndibizService {
   }
 
   private detectFileType(buffer: Buffer): string {
-    // Check file signature (magic bytes) to determine file type
     const signature = buffer.toString("hex", 0, 8).toLowerCase();
 
     if (signature.startsWith("ffd8ff")) {
@@ -63,7 +64,6 @@ class RegistrasiIndibizService {
     ) {
       return "zip";
     } else {
-      // Default to jpg if unknown
       return "jpg";
     }
   }
@@ -74,17 +74,14 @@ class RegistrasiIndibizService {
     subfolder: string = ""
   ): Promise<string> {
     try {
-      // Ensure we're logged in before attempting upload
       if (!this.megaUploader.isLoggedIn) {
-        console.log("⚠️ Not logged in to MEGA, attempting to login...");
+        console.log("Not logged in to MEGA, attempting to login...");
         await this.initializeMega();
       }
 
       const remoteFolder = subfolder
         ? `${MEGA_CONFIG.uploadFolder}/${subfolder}`
         : MEGA_CONFIG.uploadFolder;
-
-      console.log(`Attempting to upload ${fileName} to ${remoteFolder}`);
 
       const result = await this.megaUploader.uploadFile(
         fileBuffer,
@@ -117,67 +114,6 @@ class RegistrasiIndibizService {
     const uploadResults: any = {};
     const subfolder = registrasiId || `temp_${Date.now()}`;
 
-    console.log("Starting file uploads...");
-    console.log("Data received:", {
-      foto_ktp: data.foto_ktp
-        ? {
-            type: typeof data.foto_ktp,
-            isBuffer: Buffer.isBuffer(data.foto_ktp),
-            constructor: data.foto_ktp?.constructor?.name,
-            length: data.foto_ktp?.length || data.foto_ktp?.size,
-            keys: Object.keys(data.foto_ktp),
-            hasStream: !!data.foto_ktp?.stream,
-            hasBuffer: !!data.foto_ktp?.buffer,
-            hasData: !!data.foto_ktp?.data,
-            hasArrayBuffer: data.foto_ktp instanceof ArrayBuffer,
-            hasUint8Array: data.foto_ktp instanceof Uint8Array,
-          }
-        : "not provided",
-      foto_selfie: data.foto_selfie
-        ? {
-            type: typeof data.foto_selfie,
-            isBuffer: Buffer.isBuffer(data.foto_selfie),
-            constructor: data.foto_selfie?.constructor?.name,
-            length: data.foto_selfie?.length || data.foto_selfie?.size,
-            keys: Object.keys(data.foto_selfie),
-            hasStream: !!data.foto_selfie?.stream,
-            hasBuffer: !!data.foto_selfie?.buffer,
-            hasData: !!data.foto_selfie?.data,
-            hasArrayBuffer: data.foto_selfie instanceof ArrayBuffer,
-            hasUint8Array: data.foto_selfie instanceof Uint8Array,
-          }
-        : "not provided",
-      bukti_usaha: data.bukti_usaha
-        ? {
-            type: typeof data.bukti_usaha,
-            isBuffer: Buffer.isBuffer(data.bukti_usaha),
-            constructor: data.bukti_usaha?.constructor?.name,
-            length: data.bukti_usaha?.length || data.bukti_usaha?.size,
-            keys: Object.keys(data.bukti_usaha),
-            hasStream: !!data.bukti_usaha?.stream,
-            hasBuffer: !!data.bukti_usaha?.buffer,
-            hasData: !!data.bukti_usaha?.data,
-            hasArrayBuffer: data.bukti_usaha instanceof ArrayBuffer,
-            hasUint8Array: data.bukti_usaha instanceof Uint8Array,
-          }
-        : "not provided",
-      bukti_niwp: data.bukti_niwp
-        ? {
-            type: typeof data.bukti_niwp,
-            isBuffer: Buffer.isBuffer(data.bukti_niwp),
-            constructor: data.bukti_niwp?.constructor?.name,
-            length: data.bukti_niwp?.length || data.bukti_niwp?.size,
-            keys: Object.keys(data.bukti_niwp),
-            hasStream: !!data.bukti_niwp?.stream,
-            hasBuffer: !!data.bukti_niwp?.buffer,
-            hasData: !!data.bukti_niwp?.data,
-            hasArrayBuffer: data.bukti_niwp instanceof ArrayBuffer,
-            hasUint8Array: data.bukti_niwp instanceof Uint8Array,
-          }
-        : "not provided",
-    });
-
-    // Handle foto_ktp
     if (data.foto_ktp) {
       if (Buffer.isBuffer(data.foto_ktp)) {
         const fileType = this.detectFileType(data.foto_ktp);
@@ -188,7 +124,7 @@ class RegistrasiIndibizService {
         uploadResults.foto_ktp = await this.uploadFileToMega(
           data.foto_ktp,
           fileName,
-          subfolder
+          "FotoKTP"
         );
       } else if (
         typeof data.foto_ktp === "string" &&
@@ -201,15 +137,12 @@ class RegistrasiIndibizService {
           "foto_ktp is not a Buffer or string, attempting conversion..."
         );
         try {
-          // Try to convert to Buffer if it's a file-like object
           let buffer: Buffer;
 
-          // Check for various file object formats
           if (
             data.foto_ktp.stream &&
             typeof data.foto_ktp.stream.getReader === "function"
           ) {
-            // Hono file object with ReadableStream
             const chunks: Buffer[] = [];
             const reader = data.foto_ktp.stream.getReader();
             while (true) {
@@ -222,14 +155,12 @@ class RegistrasiIndibizService {
             data.foto_ktp.arrayBuffer &&
             typeof data.foto_ktp.arrayBuffer === "function"
           ) {
-            // File object with arrayBuffer method
             const arrayBuffer = await data.foto_ktp.arrayBuffer();
             buffer = Buffer.from(arrayBuffer);
           } else if (
             data.foto_ktp.buffer &&
             data.foto_ktp.buffer instanceof ArrayBuffer
           ) {
-            // File object with buffer property
             buffer = Buffer.from(data.foto_ktp.buffer);
           } else if (data.foto_ktp instanceof ArrayBuffer) {
             buffer = Buffer.from(data.foto_ktp);
@@ -241,7 +172,6 @@ class RegistrasiIndibizService {
             typeof data.foto_ktp === "object" &&
             data.foto_ktp.constructor?.name === "File"
           ) {
-            // Browser File object
             const arrayBuffer = await data.foto_ktp.arrayBuffer();
             buffer = Buffer.from(arrayBuffer);
           } else {
@@ -260,7 +190,7 @@ class RegistrasiIndibizService {
           uploadResults.foto_ktp = await this.uploadFileToMega(
             buffer,
             fileName,
-            subfolder
+            "FotoKTP"
           );
         } catch (conversionError) {
           console.error("Failed to convert foto_ktp:", conversionError);
@@ -268,7 +198,6 @@ class RegistrasiIndibizService {
       }
     }
 
-    // Handle foto_selfie
     if (data.foto_selfie) {
       if (Buffer.isBuffer(data.foto_selfie)) {
         const fileType = this.detectFileType(data.foto_selfie);
@@ -279,7 +208,7 @@ class RegistrasiIndibizService {
         uploadResults.foto_selfie = await this.uploadFileToMega(
           data.foto_selfie,
           fileName,
-          subfolder
+          "FotoSelfie"
         );
       } else if (
         typeof data.foto_selfie === "string" &&
@@ -348,7 +277,7 @@ class RegistrasiIndibizService {
           uploadResults.foto_selfie = await this.uploadFileToMega(
             buffer,
             fileName,
-            subfolder
+            "FotoSelfie"
           );
         } catch (conversionError) {
           console.error("Failed to convert foto_selfie:", conversionError);
@@ -356,7 +285,6 @@ class RegistrasiIndibizService {
       }
     }
 
-    // Handle bukti_usaha
     if (data.bukti_usaha) {
       if (Buffer.isBuffer(data.bukti_usaha)) {
         const fileType = this.detectFileType(data.bukti_usaha);
@@ -367,7 +295,7 @@ class RegistrasiIndibizService {
         uploadResults.bukti_usaha = await this.uploadFileToMega(
           data.bukti_usaha,
           fileName,
-          subfolder
+          "BuktiUsaha"
         );
       } else if (
         typeof data.bukti_usaha === "string" &&
@@ -436,7 +364,7 @@ class RegistrasiIndibizService {
           uploadResults.bukti_usaha = await this.uploadFileToMega(
             buffer,
             fileName,
-            subfolder
+            "BuktiUsaha"
           );
         } catch (conversionError) {
           console.error("Failed to convert bukti_usaha:", conversionError);
@@ -444,7 +372,6 @@ class RegistrasiIndibizService {
       }
     }
 
-    // Handle bukti_niwp
     if (data.bukti_niwp) {
       if (Buffer.isBuffer(data.bukti_niwp)) {
         const fileType = this.detectFileType(data.bukti_niwp);
@@ -455,7 +382,7 @@ class RegistrasiIndibizService {
         uploadResults.bukti_niwp = await this.uploadFileToMega(
           data.bukti_niwp,
           fileName,
-          subfolder
+          "BuktiNIWP"
         );
       } else if (
         typeof data.bukti_niwp === "string" &&
@@ -524,10 +451,97 @@ class RegistrasiIndibizService {
           uploadResults.bukti_niwp = await this.uploadFileToMega(
             buffer,
             fileName,
-            subfolder
+            "BuktiNIWP"
           );
         } catch (conversionError) {
           console.error("Failed to convert bukti_niwp:", conversionError);
+        }
+      }
+    }
+
+    if (data.foto_lokasi) {
+      if (Buffer.isBuffer(data.foto_lokasi)) {
+        const fileType = this.detectFileType(data.foto_lokasi);
+        const fileName = `foto_lokasi_${subfolder}_${Date.now()}.${fileType}`;
+        console.log(
+          `Uploading foto_lokasi: ${fileName} (detected as ${fileType})`
+        );
+        uploadResults.foto_lokasi = await this.uploadFileToMega(
+          data.foto_lokasi,
+          fileName,
+          "FotoLokasi"
+        );
+      } else if (
+        typeof data.foto_lokasi === "string" &&
+        data.foto_lokasi.trim() !== ""
+      ) {
+        uploadResults.foto_lokasi = data.foto_lokasi;
+        console.log("Using existing foto_lokasi URL:", data.foto_lokasi);
+      } else {
+        console.log(
+          "foto_lokasi is not a Buffer or string, attempting conversion..."
+        );
+        try {
+          let buffer: Buffer;
+
+          if (
+            data.foto_lokasi.stream &&
+            typeof data.foto_lokasi.stream.getReader === "function"
+          ) {
+            const chunks: Buffer[] = [];
+            const reader = data.foto_lokasi.stream.getReader();
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              chunks.push(Buffer.from(value));
+            }
+            buffer = Buffer.concat(chunks);
+          } else if (
+            data.foto_lokasi.arrayBuffer &&
+            typeof data.foto_lokasi.arrayBuffer === "function"
+          ) {
+            const arrayBuffer = await data.foto_lokasi.arrayBuffer();
+            buffer = Buffer.from(arrayBuffer);
+          } else if (
+            data.foto_lokasi.buffer &&
+            data.foto_lokasi.buffer instanceof ArrayBuffer
+          ) {
+            buffer = Buffer.from(data.foto_lokasi.buffer);
+          } else if (data.foto_lokasi instanceof ArrayBuffer) {
+            buffer = Buffer.from(data.foto_lokasi);
+          } else if (data.foto_lokasi instanceof Uint8Array) {
+            buffer = Buffer.from(data.foto_lokasi);
+          } else if (
+            data.foto_lokasi.data &&
+            Array.isArray(data.foto_lokasi.data)
+          ) {
+            buffer = Buffer.from(data.foto_lokasi.data);
+          } else if (
+            typeof data.foto_lokasi === "object" &&
+            data.foto_lokasi.constructor?.name === "File"
+          ) {
+            const arrayBuffer = await data.foto_lokasi.arrayBuffer();
+            buffer = Buffer.from(arrayBuffer);
+          } else {
+            throw new Error(
+              `Cannot convert foto_lokasi to Buffer. Available keys: ${Object.keys(
+                data.foto_lokasi
+              ).join(", ")}`
+            );
+          }
+
+          const fileType = this.detectFileType(buffer);
+          const fileName = `foto_lokasi_${subfolder}_${Date.now()}.${fileType}`;
+          console.log(
+            `Converting and uploading foto_lokasi: ${fileName}, size: ${buffer.length} (detected as ${fileType})`
+          );
+          uploadResults.foto_lokasi = await this.uploadFileToMega(
+            buffer,
+            fileName,
+            "FotoLokasi"
+          );
+        } catch (conversionError) {
+          console.error("Failed to convert foto_lokasi:", conversionError);
         }
       }
     }
@@ -544,6 +558,11 @@ class RegistrasiIndibizService {
           skip,
           take: limit,
           orderBy: { created_at: "desc" },
+          include: {
+            paket: true,
+            sales: true,
+            wilayah: true,
+          },
         }),
         prisma.registrasiIndibiz.count(),
       ]);
@@ -583,13 +602,12 @@ class RegistrasiIndibizService {
 
   async create(data: CreateRegistrasiIndibizInput) {
     try {
-      // Validation
       if (
         !data ||
         typeof data.nama !== "string" ||
         data.nama.trim() === "" ||
-        typeof data.datel_id !== "string" ||
-        data.datel_id.trim() === "" ||
+        typeof data.wilayah_id !== "string" ||
+        data.wilayah_id.trim() === "" ||
         typeof data.paket_id !== "string" ||
         data.paket_id.trim() === "" ||
         data.sales_id.trim() === "" ||
@@ -611,7 +629,6 @@ class RegistrasiIndibizService {
         throw new BadRequestError("Data registrasi_indibiz tidak valid");
       }
 
-      // Check for existing records
       const existing = await prisma.registrasiIndibiz.findFirst({
         where: {
           OR: [{ no_ktp: data.no_ktp.trim() }, { email: data.email.trim() }],
@@ -624,12 +641,12 @@ class RegistrasiIndibizService {
         );
       }
 
-      // Check if any files need to be uploaded
       const hasFileUploads =
         (data.foto_ktp && Buffer.isBuffer(data.foto_ktp)) ||
         (data.foto_selfie && Buffer.isBuffer(data.foto_selfie)) ||
         (data.bukti_usaha && Buffer.isBuffer(data.bukti_usaha)) ||
-        (data.bukti_niwp && Buffer.isBuffer(data.bukti_niwp));
+        (data.bukti_niwp && Buffer.isBuffer(data.bukti_niwp)) ||
+        (data.foto_lokasi && Buffer.isBuffer(data.foto_lokasi));
 
       let uploadedFiles: any = {};
 
@@ -638,27 +655,21 @@ class RegistrasiIndibizService {
         try {
           await this.initializeMega();
           uploadedFiles = await this.handleFileUploads(data);
-          console.log("✅ All files uploaded successfully");
+          console.log("All files uploaded successfully");
         } catch (uploadError) {
           console.error("❌ File upload failed:", uploadError);
           throw uploadError;
         } finally {
-          try {
-            await this.megaUploader.logout();
-            console.log("✅ MEGA logout completed");
-          } catch (logoutError) {
-            console.error("⚠️ Logout error (non-critical):", logoutError);
-          }
+          // keep MEGA session alive to speed up subsequent uploads
         }
       } else {
-        // Handle string URLs without upload
         uploadedFiles = await this.handleFileUploads(data);
       }
 
       const newRegistrasi = await prisma.registrasiIndibiz.create({
         data: {
           nama: data.nama.trim(),
-          datel_id: data.datel_id.trim(),
+          wilayah_id: data.wilayah_id.trim(),
           paket_id: data.paket_id.trim(),
           sales_id: data.sales_id.trim() ?? "",
           no_hp_1: data.no_hp_1.trim(),
@@ -669,21 +680,20 @@ class RegistrasiIndibizService {
           ttl_pic: data.ttl_pic.trim(),
           no_ktp: data.no_ktp.trim(),
           email: data.email.trim(),
+          nomer_ao: "",
+          status: null,
+          keterangan: "",
           foto_ktp: uploadedFiles.foto_ktp ?? "",
           foto_selfie: uploadedFiles.foto_selfie ?? "",
           bukti_usaha: uploadedFiles.bukti_usaha ?? "",
           bukti_niwp: uploadedFiles.bukti_niwp ?? "",
+          foto_lokasi: uploadedFiles.foto_lokasi ?? "",
         },
       });
 
       return newRegistrasi;
     } catch (error) {
       console.error("Create error:", error);
-      try {
-        await this.megaUploader.logout();
-      } catch (logoutError) {
-        console.error("Logout error:", logoutError);
-      }
       throw error;
     }
   }
@@ -702,7 +712,6 @@ class RegistrasiIndibizService {
         throw new NotFoundError("RegistrasiIndibiz tidak ditemukan");
       }
 
-      // Check for conflicts
       if (
         (data.no_ktp && data.no_ktp.trim() !== registrasi.no_ktp) ||
         (data.email && data.email.trim() !== registrasi.email)
@@ -731,7 +740,8 @@ class RegistrasiIndibizService {
         (data.foto_ktp && Buffer.isBuffer(data.foto_ktp)) ||
         (data.foto_selfie && Buffer.isBuffer(data.foto_selfie)) ||
         (data.bukti_usaha && Buffer.isBuffer(data.bukti_usaha)) ||
-        (data.bukti_niwp && Buffer.isBuffer(data.bukti_niwp));
+        (data.bukti_niwp && Buffer.isBuffer(data.bukti_niwp)) ||
+        (data.foto_lokasi && Buffer.isBuffer(data.foto_lokasi));
 
       let uploadedFiles: any = {};
 
@@ -740,23 +750,19 @@ class RegistrasiIndibizService {
         try {
           await this.initializeMega();
           uploadedFiles = await this.handleFileUploads(data, id);
-          console.log("✅ All files uploaded successfully for update");
+          console.log("All files uploaded successfully for update");
         } catch (uploadError) {
           console.error("❌ File upload failed during update:", uploadError);
           throw uploadError;
         } finally {
-          try {
-            await this.megaUploader.logout();
-            console.log("✅ MEGA logout completed after update");
-          } catch (logoutError) {
-            console.error("⚠️ Logout error (non-critical):", logoutError);
-          }
+          // keep MEGA session alive after update to speed up subsequent uploads
         }
       } else if (
         data.foto_ktp ||
         data.foto_selfie ||
         data.bukti_usaha ||
-        data.bukti_niwp
+        data.bukti_niwp ||
+        data.foto_lokasi
       ) {
         uploadedFiles = await this.handleFileUploads(data, id);
       }
@@ -765,8 +771,8 @@ class RegistrasiIndibizService {
         where: { id },
         data: {
           ...(data.nama !== undefined ? { nama: data.nama.trim() } : {}),
-          ...(data.datel_id !== undefined
-            ? { datel_id: data.datel_id.trim() }
+          ...(data.wilayah_id !== undefined
+            ? { wilayah_id: data.wilayah_id.trim() }
             : {}),
           ...(data.paket_id !== undefined
             ? { paket_id: data.paket_id.trim() }
@@ -816,17 +822,70 @@ class RegistrasiIndibizService {
           (data.bukti_niwp !== undefined && typeof data.bukti_niwp === "string")
             ? { bukti_niwp: uploadedFiles.bukti_niwp ?? data.bukti_niwp ?? "" }
             : {}),
+          ...(uploadedFiles.foto_lokasi !== undefined ||
+          (data.foto_lokasi !== undefined &&
+            typeof data.foto_lokasi === "string")
+            ? {
+                foto_lokasi:
+                  uploadedFiles.foto_lokasi ?? data.foto_lokasi ?? "",
+              }
+            : {}),
         },
       });
 
       return updatedRegistrasi;
     } catch (error) {
       console.error("Update error:", error);
-      try {
-        await this.megaUploader.logout();
-      } catch (logoutError) {
-        console.error("Logout error:", logoutError);
+      throw error;
+    }
+  }
+
+  async setKodeSc(
+    id: string,
+    data: {
+      nomer_ao: string;
+      status:
+        | "PS"
+        | "CANCEL"
+        | "KENDALA"
+        | "REVOKE"
+        | "QC1"
+        | "PI"
+        | "FALLOUT"
+        | "WFM_UNSC"
+        | "QC2_FCC"
+        | "PAPERLESS"
+        | "SURVER"
+        | "DECLINE_FCC"
+        | "PT3_WAITING_AKTIVASI"
+        | "FOLLOWUP_TO_COMPLETE";
+      keterangan: string;
+    }
+  ) {
+    try {
+      if (!id || typeof id !== "string" || id.trim() === "") {
+        throw new BadRequestError("ID registrasi_indibiz tidak valid");
       }
+
+      const registrasi = await prisma.registrasiIndibiz.findUnique({
+        where: { id },
+      });
+
+      if (!registrasi) {
+        throw new NotFoundError("RegistrasiIndibiz tidak ditemukan");
+      }
+
+      const update = await prisma.registrasiIndibiz.update({
+        where: { id },
+        data: {
+          nomer_ao: data.nomer_ao,
+          status: data.status,
+          keterangan: data.keterangan,
+        },
+      });
+
+      return update;
+    } catch (error) {
       throw error;
     }
   }
@@ -863,6 +922,129 @@ class RegistrasiIndibizService {
       return accountInfo;
     } catch (error) {
       console.error("Get storage info error:", error);
+      throw error;
+    }
+  }
+
+  async importExcelCustomers(rows: any[]) {
+    try {
+      if (!Array.isArray(rows) || rows.length === 0) {
+        throw new BadRequestError("Data Excel kosong atau tidak valid");
+      }
+
+      const results = [];
+
+      for (const row of rows) {
+        const {
+          nama,
+          wilayah,
+          paket,
+          sales,
+          no_hp_1,
+          no_hp_2,
+          koordinat,
+          alamat,
+          nama_pic,
+          ttl_pic,
+          no_ktp,
+          email,
+          foto_ktp,
+          foto_selfie,
+          bukti_usaha,
+          bukti_niwp,
+          foto_lokasi,
+        } = row;
+
+        if (
+          !nama ||
+          !wilayah ||
+          !paket ||
+          !sales ||
+          !no_hp_1 ||
+          !alamat ||
+          !nama_pic ||
+          !ttl_pic ||
+          !no_ktp ||
+          !email
+        ) {
+          throw new BadRequestError(
+            `Data customer tidak lengkap untuk baris dengan nama: ${
+              nama || "Unknown"
+            }`
+          );
+        }
+
+        const wilayahRecord = await prisma.wilayah.findFirst({
+          where: { nama: { equals: wilayah.trim(), mode: "insensitive" } },
+          select: { id: true, nama: true },
+        });
+        if (!wilayahRecord) {
+          throw new BadRequestError(
+            `Wilayah '${wilayah}' tidak ditemukan untuk customer: ${nama}`
+          );
+        }
+
+        const paketRecord = await prisma.paket.findFirst({
+          where: { nama: { equals: paket.trim(), mode: "insensitive" } },
+          select: { id: true, nama: true },
+        });
+        if (!paketRecord) {
+          throw new BadRequestError(
+            `Paket '${paket}' tidak ditemukan untuk customer: ${nama}`
+          );
+        }
+
+        const salesRecord = await prisma.sales.findFirst({
+          where: { nama: { equals: sales.trim(), mode: "insensitive" } },
+          select: { id: true, nama: true },
+        });
+        if (!salesRecord) {
+          throw new BadRequestError(
+            `Sales '${sales}' tidak ditemukan untuk customer: ${nama}`
+          );
+        }
+
+        const existingCustomer = await prisma.registrasiIndibiz.findFirst({
+          where: {
+            OR: [{ no_ktp: no_ktp.trim() }, { email: email.trim() }],
+          },
+        });
+
+        if (existingCustomer) {
+          console.warn(
+            `Customer dengan KTP/email '${no_ktp}' sudah ada, dilewati`
+          );
+          continue;
+        }
+
+        const newCustomer = await prisma.registrasiIndibiz.createMany({
+          data: {
+            nama: nama.trim(),
+            wilayah_id: wilayahRecord.id,
+            paket_id: paketRecord.id,
+            sales_id: salesRecord.id,
+            no_hp_1: no_hp_1.trim(),
+            no_hp_2: no_hp_2?.trim() || null,
+            kordinat: koordinat?.trim() || "",
+            alamat: alamat.trim(),
+            nama_pic: nama_pic.trim(),
+            ttl_pic: ttl_pic.trim(),
+            no_ktp: no_ktp.trim(),
+            email: email.trim(),
+            foto_ktp: foto_ktp?.trim() || "",
+            foto_selfie: foto_selfie?.trim() || "",
+            bukti_usaha: bukti_usaha?.trim() || "",
+            bukti_niwp: bukti_niwp?.trim() || "",
+            foto_lokasi: foto_lokasi?.trim() || "",
+          },
+        });
+
+        results.push(newCustomer);
+      }
+
+      return null;
+    } catch (error) {
+      console.error("Customer importExcel error:", error);
       throw error;
     }
   }

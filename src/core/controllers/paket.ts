@@ -1,3 +1,4 @@
+import * as XLSX from "xlsx";
 import {
   asyncHandler,
   PaginationHelper,
@@ -56,5 +57,44 @@ export const paketController = {
     const id = c.req.param("id");
     await PaketModel.destroy(id);
     return ResponseHelper.success(c, null, "Berhasil menghapus paket");
+  }),
+  import: asyncHandler(async (c: Context): Promise<Response> => {
+    const contentType = c.req.header("content-type") || "";
+
+    // Support Excel (multipart/form-data)
+    if (contentType.includes("multipart/form-data")) {
+      const body = await c.req.parseBody();
+      const file = body["file"] as File;
+      if (!file) {
+        return ResponseHelper.error(c, "File tidak ditemukan", 400);
+      }
+      const buffer = Buffer.from(await file.arrayBuffer());
+      const workbook = XLSX.read(buffer, { type: "buffer" });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const data = XLSX.utils.sheet_to_json(sheet);
+      await PaketModel.importExcel(data);
+      return ResponseHelper.success(c, null, "Berhasil import paket");
+    }
+
+    // Fallback JSON
+    let items: any[] = [];
+    try {
+      if (contentType.includes("application/json")) {
+        const body = await c.req.json();
+        items = Array.isArray(body) ? body : body?.items || [];
+      } else {
+        const text = await c.req.text();
+        items = JSON.parse(text);
+      }
+    } catch (e) {
+      return ResponseHelper.error(c, "Format import tidak valid", 400);
+    }
+
+    if (!Array.isArray(items) || items.length === 0) {
+      return ResponseHelper.error(c, "Data import kosong", 400);
+    }
+
+    await PaketModel.importExcel(items);
+    return ResponseHelper.success(c, { count: items.length }, "Import paket sukses");
   }),
 };

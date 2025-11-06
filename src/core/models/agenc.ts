@@ -72,6 +72,13 @@ export const AgencModel = {
     }
   },
 
+  async list() {
+    return prisma.agenc.findMany({
+      select: { id: true, nama: true },
+      orderBy: { created_at: "desc" },
+    })
+  },
+
   async update(id: string, data: { nama: string }) {
     try {
       if (!id || typeof id !== "string" || id.trim() === "") {
@@ -131,6 +138,37 @@ export const AgencModel = {
       return { message: "Agenc berhasil dihapus" };
     } catch (error) {
       console.error("Agenc destroy error:", error);
+      throw error;
+    }
+  },
+   async importExcel(rows: any[]) {
+    try {
+      if (!Array.isArray(rows) || rows.length === 0) {
+        throw new BadRequestError("Data Excel kosong atau tidak valid");
+      }
+
+      const inserts: any[] = [];
+
+      for (const row of rows) {
+        const { nama } = row;
+
+        if (!nama) {
+          throw new BadRequestError("Data agenc tidak lengkap");
+        }
+
+        inserts.push({
+          nama: nama.trim(),
+        });
+      }
+
+      await prisma.agenc.createMany({
+        data: inserts,
+        skipDuplicates: true,
+      });
+
+      return null;
+    } catch (error) {
+      console.error("Agenc importExcel error:", error);
       throw error;
     }
   },

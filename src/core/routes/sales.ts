@@ -15,5 +15,6 @@ salesRoutes.put(
   salesController.update
 );
 salesRoutes.delete("/:id", salesController.delete);
+salesRoutes.post("/import", salesController.import);
 
 export default salesRoutes;

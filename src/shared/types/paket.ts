@@ -1,29 +1,25 @@
 import { z } from "zod";
+import {
+  KategoriPaketEnum,
+  RatioEnum,
+  JenisPaketEnum,
+  TipeONTEnum,
+} from "./enum";
 
 export const paketSchemaCreate = z.object({
-  nama: z.string().min(1, "Nama paket tidak boleh kosong"),
-  bandwith: z
-    .number()
-    .int("Bandwith harus berupa bilangan bulat")
-    .positive("Bandwith harus lebih dari 0"),
-  price: z.number().min(0, "Harga tidak boleh kurang dari 0"),
-  price_psb: z.number().min(0, "Harga PSB tidak boleh kurang dari 0"),
-  category_ids: z
-    .array(z.string().min(1, "Kategori tidak boleh kosong"))
-    .min(1, "Kategori tidak boleh kosong"),
-  promo_ids: z
-    .array(
-      z
-        .string()
-        .min(1, "Promo tidak boleh kosong")
-        .optional()
-        .or(z.literal("").transform(() => undefined))
-    )
-    .optional(),
-  ppn: z
-    .number()
-    .int("PPN harus berupa bilangan bulat")
-    .min(0, "PPN tidak boleh kurang dari 0"),
+  kode: z.string().optional().nullable(),
+  nama: z.string().min(1, "Nama paket wajib diisi"),
+  kategori: KategoriPaketEnum.optional(),
+  ratio: RatioEnum.optional(),
+  jenis_paket: JenisPaketEnum,
+  bandwidth: z.number().int().positive("Bandwidth harus angka positif"),
+  ont_type: TipeONTEnum.optional(),
+  harga: z.number().min(0, "Harga harus angka non-negatif"),
+  harga_psb: z.number().min(0, "Harga PSB harus angka non-negatif"),
+  total: z.number().min(0, "Total harus angka non-negatif"),
+  aktif: z.boolean().optional(),
+  prodigis: z.array(z.string()).optional(),
+  promo_pakets: z.array(z.string()).optional(),
 });
 
 export const paketSchemaUpdate = paketSchemaCreate.partial();

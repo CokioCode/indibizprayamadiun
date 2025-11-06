@@ -14,6 +14,12 @@ paketRoutes.put(
   validateBody(paketSchemaUpdate),
   paketController.update
 );
+paketRoutes.patch(
+  "/:id",
+  validateBody(paketSchemaUpdate),
+  paketController.update
+);
 paketRoutes.delete("/:id", paketController.delete);
+paketRoutes.post("/import", paketController.import);
 
 export default paketRoutes;

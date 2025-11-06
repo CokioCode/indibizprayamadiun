@@ -1,6 +1,7 @@
 import { Telegraf, Context, session, Markup } from "telegraf";
 import { prisma } from "src/integrations";
 import MegaUploadUtils from "src/integrations/mega";
+import { PaketModel } from "src/core/models/paket";
 
 enum FormStep {
   IDLE = 0,
@@ -39,7 +40,7 @@ interface FormData {
   nama_pic?: string;
   ttl_pic?: string;
   no_ktp?: string;
-  datel_id?: string;
+  wilayah_id?: string;
   paket_id?: string;
   sales_id?: string;
   foto_ktp?: string;
@@ -80,11 +81,7 @@ class Validators {
     if (!dateRegex.test(date)) return false;
 
     const [, day, month, year] = date.match(dateRegex)!;
-    const dateObj = new Date(
-      parseInt(year),
-      parseInt(month) - 1,
-      parseInt(day)
-    );
+    const dateObj = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
     return (
       dateObj.getDate() === parseInt(day) &&
       dateObj.getMonth() === parseInt(month) - 1 &&
@@ -94,8 +91,7 @@ class Validators {
 
   static isValidCoordinate(coord: string): boolean {
     if (coord === "-" || coord === "") return true;
-    const coordRegex =
-      /^-?([0-9]{1,3}(\.[0-9]+)?),\s?-?([0-9]{1,3}(\.[0-9]+)?)$/;
+    const coordRegex = /^-?([0-9]{1,3}(\.[0-9]+)?),\s?-?([0-9]{1,3}(\.[0-9]+)?)$/;
     return coordRegex.test(coord);
   }
 }
@@ -112,8 +108,7 @@ class ErrorHandler {
   ): Promise<void> {
     this.logError("Bot Error", error);
     await ctx.reply(
-      userMessage ||
-        "❌ Terjadi kesalahan. Silakan coba lagi atau hubungi admin."
+      userMessage || "❌ Terjadi kesalahan. Silakan coba lagi atau hubungi admin."
     );
   }
 }
@@ -128,18 +123,17 @@ class Messages {
     [FormStep.ALAMAT]: "🏠 Masukkan *Alamat* lengkap:",
     [FormStep.KOORDINAT]:
       "📍 Masukkan *Koordinat* (opsional, format: lat,lng atau ketik '-'):",
-    [FormStep.NAMA_PIC]: "👤 Masukkan *Nama PIC* (Person In Charge):",
+    [FormStep.NAMA_PIC]: "👤 Masukkan Nama PIC (Person In Charge):",
     [FormStep.TTL_PIC]: "📅 Masukkan *Tanggal Lahir PIC* (format: DD-MM-YYYY):",
     [FormStep.NO_KTP]: "🆔 Masukkan *Nomor KTP* (16 digit):",
     [FormStep.FOTO_KTP]: "📷 Kirim *Foto KTP* (gambar, maks 20MB):",
     [FormStep.FOTO_SELFIE]: "📷 Kirim *Foto Selfie* (gambar, maks 20MB):",
-    [FormStep.BUKTI_USAHA]:
-      "📄 Kirim *Bukti Usaha* (gambar/dokumen, maks 20MB):",
+    [FormStep.BUKTI_USAHA]: "📄 Kirim *Bukti Usaha* (gambar/dokumen, maks 20MB):",
     [FormStep.BUKTI_NIWP]: "📄 Kirim *Bukti NIWP* (gambar/dokumen, maks 20MB):",
   } as const;
 
   static readonly SUCCESS = {
-    DATEL_SELECTED: "✅ Datel berhasil dipilih!",
+    DATEL_SELECTED: "✅ Wilayah berhasil dipilih!",
     PAKET_SELECTED: "✅ Paket berhasil dipilih!",
     SALES_SELECTED: "✅ Sales berhasil dipilih!",
     FILE_UPLOADED: "✅ File berhasil diupload!",
@@ -151,24 +145,29 @@ class Messages {
       "Tidak ada data yang bisa dilanjutkan. Ketik /registrasi untuk mulai baru.",
     FOLLOW_STEPS: "❌ Silakan ikuti langkah registrasi terlebih dahulu.",
     UPLOAD_FAILED: "❌ Gagal mengupload file. Silakan coba lagi.",
-    UPLOAD_TIMEOUT:
-      "❌ Upload timeout. Silakan coba lagi dengan file yang lebih kecil.",
-    INVALID_INPUT:
-      "❌ Input tidak valid. Silakan periksa format dan coba lagi.",
-    DATABASE_ERROR:
-      "❌ Kesalahan database. Silakan coba lagi atau hubungi admin.",
+    UPLOAD_TIMEOUT: "❌ Upload timeout. Silakan coba lagi dengan file yang lebih kecil.",
+    INVALID_INPUT: "❌ Input tidak valid. Silakan periksa format dan coba lagi.",
+    DATABASE_ERROR: "❌ Kesalahan database. Silakan coba lagi atau hubungi admin.",
     FILE_TOO_LARGE: "❌ File terlalu besar. Maksimal 20MB.",
-    INCOMPLETE_DATA:
-      "❌ Data tidak lengkap. Silakan mulai ulang dengan /registrasi",
+    INCOMPLETE_DATA: "❌ Data tidak lengkap. Silakan mulai ulang dengan /registrasi",
   } as const;
 }
 
-const bot = new Telegraf<MyContext>(process.env.BOT_TOKEN!);
+const bot = new Telegraf<MyContext>(process.env.TELEGRAM_BOT_TOKEN!);
 
 const megaUploader = new MegaUploadUtils(
   process.env.MEGA_EMAIL!,
   process.env.MEGA_PASSWORD!
 );
+
+// Warm up MEGA login once at startup to avoid first-upload latency
+(async () => {
+  try {
+    await megaUploader.login();
+  } catch (e) {
+    console.error("MEGA pre-login failed (will retry on first upload):", e);
+  }
+})();
 
 bot.use(
   session({
@@ -177,77 +176,57 @@ bot.use(
 );
 
 class SelectionHandlers {
-  static async showDatelSelection(ctx: MyContext): Promise<void> {
+  static async showWilayahSelection(ctx: MyContext): Promise<void> {
     try {
-      const datels = await prisma.datel.findMany({
+      const wilayahs = await prisma.wilayah.findMany({
         take: CONSTANTS.MAX_SELECTION_ITEMS,
         orderBy: { nama: "asc" },
       });
 
-      if (datels.length === 0) {
-        await ctx.reply(
-          "❌ Tidak ada datel yang tersedia. Silakan hubungi admin."
-        );
+      if (wilayahs.length === 0) {
+        await ctx.reply("❌ Tidak ada wilayah yang tersedia. Silakan hubungi admin.");
         return;
       }
 
-      const buttons = datels.map((datel) => [
-        Markup.button.callback(
-          `${datel.nama} (${datel.kode_sto})`,
-          `datel_${datel.id}`
-        ),
+      const buttons = wilayahs.map((w) => [
+        Markup.button.callback(`${w.nama}`, `wilayah_${w.id}`),
       ]);
 
       buttons.push([Markup.button.callback("❌ Batal", "cancel_selection")]);
 
-      await ctx.reply("🏢 Pilih *Datel*:", {
+      await ctx.reply("🏢 Pilih Datel Pemesanan:", {
         parse_mode: "Markdown",
         ...Markup.inlineKeyboard(buttons),
       });
     } catch (error) {
-      await ErrorHandler.handleError(
-        ctx,
-        error,
-        "❌ Error mengambil data datel."
-      );
+      await ErrorHandler.handleError(ctx, error, "❌ Error mengambil data wilayah.");
     }
   }
 
   static async showPaketSelection(ctx: MyContext): Promise<void> {
     try {
-      const pakets = await prisma.paket.findMany({
-        take: CONSTANTS.MAX_SELECTION_ITEMS,
-        orderBy: { nama: "asc" },
-      });
+      const pakets = await PaketModel.list();
 
-      if (pakets.length === 0) {
-        await ctx.reply(
-          "❌ Tidak ada paket yang tersedia. Silakan hubungi admin."
-        );
+      if (!pakets || pakets.length === 0) {
+        await ctx.reply("❌ Tidak ada paket yang tersedia. Silakan hubungi admin.");
         return;
       }
 
-      const buttons = pakets.map((paket) => [
+      const buttons = (pakets as any[]).slice(0, CONSTANTS.MAX_SELECTION_ITEMS).map((paket: any) => [
         Markup.button.callback(
-          `${paket.nama} - ${paket.bandwith} Mbps (Rp ${
-            paket.price?.toLocaleString() || "N/A"
-          })`,
+          `${paket.label_option || paket.nama}`,
           `paket_${paket.id}`
         ),
       ]);
 
       buttons.push([Markup.button.callback("❌ Batal", "cancel_selection")]);
 
-      await ctx.reply("📦 Pilih *Paket*:", {
+      await ctx.reply("📦 Pilih Paket:", {
         parse_mode: "Markdown",
         ...Markup.inlineKeyboard(buttons),
       });
     } catch (error) {
-      await ErrorHandler.handleError(
-        ctx,
-        error,
-        "❌ Error mengambil data paket."
-      );
+      await ErrorHandler.handleError(ctx, error, "❌ Error mengambil data paket.");
     }
   }
 
@@ -255,25 +234,16 @@ class SelectionHandlers {
     try {
       const sales = await prisma.sales.findMany({
         take: CONSTANTS.MAX_SELECTION_ITEMS,
-        include: {
-          agency: true,
-          datel: true,
-        },
         orderBy: { nama: "asc" },
       });
 
       if (sales.length === 0) {
-        await ctx.reply(
-          "❌ Tidak ada sales yang tersedia. Silakan hubungi admin."
-        );
+        await ctx.reply("❌ Tidak ada sales yang tersedia. Silakan hubungi admin.");
         return;
       }
 
       const buttons = sales.map((salesPerson) => [
-        Markup.button.callback(
-          `${salesPerson.nama} (${salesPerson.agency?.nama || "N/A"})`,
-          `sales_${salesPerson.id}`
-        ),
+        Markup.button.callback(`${salesPerson.nama}`, `sales_${salesPerson.id}`),
       ]);
 
       buttons.push([Markup.button.callback("❌ Batal", "cancel_selection")]);
@@ -283,11 +253,7 @@ class SelectionHandlers {
         ...Markup.inlineKeyboard(buttons),
       });
     } catch (error) {
-      await ErrorHandler.handleError(
-        ctx,
-        error,
-        "❌ Error mengambil data sales."
-      );
+      await ErrorHandler.handleError(ctx, error, "❌ Error mengambil data sales.");
     }
   }
 }
@@ -299,10 +265,6 @@ class FileUploadHandler {
     subfolder: string
   ): Promise<UploadResult> {
     try {
-      console.log(
-        `🔄 Starting upload: ${fileName} (${fileBuffer.length} bytes)`
-      );
-
       if (fileBuffer.length > CONSTANTS.FILE_SIZE_LIMIT) {
         return { success: false, error: "File too large" };
       }
@@ -310,18 +272,12 @@ class FileUploadHandler {
       await megaUploader.login();
 
       const remoteFolder = `${CONSTANTS.MEGA_FOLDER}/${subfolder}`;
-      const result = await megaUploader.uploadFile(
-        fileBuffer,
-        fileName,
-        remoteFolder
-      );
+      const result = await megaUploader.uploadFile(fileBuffer, fileName, remoteFolder);
 
       if (result.success && result.shareLink) {
-        console.log(`✅ Upload successful: ${fileName}`);
         return { success: true, url: result.shareLink };
       }
 
-      console.error(`❌ Upload failed: ${fileName}`, result.error);
       return { success: false, error: result.error };
     } catch (error) {
       ErrorHandler.logError("MEGA Upload", error);
@@ -391,10 +347,7 @@ class FileUploadHandler {
       const uploadResult = await Promise.race([
         this.uploadFileToMega(fileBuffer, fileName, subfolder),
         new Promise<UploadResult>((resolve) =>
-          setTimeout(
-            () => resolve({ success: false, error: "timeout" }),
-            CONSTANTS.UPLOAD_TIMEOUT
-          )
+          setTimeout(() => resolve({ success: false, error: "timeout" }), CONSTANTS.UPLOAD_TIMEOUT)
         ),
       ]);
 
@@ -432,7 +385,7 @@ class RegistrationHandler {
         "nama_pic",
         "ttl_pic",
         "no_ktp",
-        "datel_id",
+        "wilayah_id",
         "paket_id",
         "sales_id",
       ];
@@ -443,9 +396,7 @@ class RegistrationHandler {
 
       if (missingFields.length > 0) {
         await ctx.reply(
-          `${
-            Messages.ERRORS.INCOMPLETE_DATA
-          }\nField yang kosong: ${missingFields.join(", ")}`
+          `${Messages.ERRORS.INCOMPLETE_DATA}\nField yang kosong: ${missingFields.join(", ")}`
         );
         return;
       }
@@ -453,7 +404,7 @@ class RegistrationHandler {
       const registration = await prisma.registrasiIndibiz.create({
         data: {
           nama: ctx.session.nama!,
-          datel_id: ctx.session.datel_id!,
+          wilayah_id: ctx.session.wilayah_id!,
           paket_id: ctx.session.paket_id!,
           sales_id: ctx.session.sales_id!,
           no_hp_1: ctx.session.no_hp_1!,
@@ -471,32 +422,16 @@ class RegistrationHandler {
         },
       });
 
-      const [datel, paket, sales] = await Promise.all([
-        prisma.datel.findUnique({ where: { id: ctx.session.datel_id! } }),
+      const [wilayah, paket, sales] = await Promise.all([
+        prisma.wilayah.findUnique({ where: { id: ctx.session.wilayah_id! } }),
         prisma.paket.findUnique({ where: { id: ctx.session.paket_id! } }),
-        prisma.sales.findUnique({
-          where: { id: ctx.session.sales_id! },
-          include: { agency: true },
-        }),
+        prisma.sales.findUnique({ where: { id: ctx.session.sales_id! } }),
       ]);
 
-      const summary = this.generateRegistrationSummary(
-        registration,
-        datel,
-        paket,
-        sales
-      );
+      const summary = this.generateRegistrationSummary(registration, wilayah, paket, sales);
       await ctx.reply(summary, { parse_mode: "Markdown" });
-
-      console.log(
-        `✅ Registration saved: ID ${registration.id}, User: ${ctx.from?.id}`
-      );
     } catch (error) {
-      await ErrorHandler.handleError(
-        ctx,
-        error,
-        Messages.ERRORS.DATABASE_ERROR
-      );
+      await ErrorHandler.handleError(ctx, error, Messages.ERRORS.DATABASE_ERROR);
     } finally {
       ctx.session = { step: FormStep.IDLE };
     }
@@ -504,7 +439,7 @@ class RegistrationHandler {
 
   private static generateRegistrationSummary(
     registration: any,
-    datel: any,
+    wilayah: any,
     paket: any,
     sales: any
   ): string {
@@ -519,18 +454,10 @@ class RegistrationHandler {
       `• HP 2: ${registration.no_hp_2 || "-"}\n` +
       `• Alamat: ${registration.alamat}\n` +
       `• Koordinat: ${registration.kordinat || "-"}\n\n` +
-      `👥 *Data PIC:*\n` +
-      `• Nama: ${registration.nama_pic}\n` +
-      `• TTL: ${registration.ttl_pic}\n` +
-      `• KTP: ${registration.no_ktp}\n\n` +
       `🏢 *Pilihan Layanan:*\n` +
-      `• Datel: ${datel?.nama || "Unknown"}\n` +
-      `• Paket: ${paket?.nama || "Unknown"} (${
-        paket?.bandwith || "N/A"
-      } Mbps)\n` +
-      `• Sales: ${sales?.nama || "Unknown"} (${
-        sales?.agency?.nama || "N/A"
-      })\n\n` +
+      `• Wilayah: ${wilayah?.nama || "Unknown"}\n` +
+      `• Paket: ${paket?.nama || "Unknown"} (${paket?.bandwidth || paket?.bandwith || "N/A"} Mbps)\n` +
+      `• Sales: ${sales?.nama || "Unknown"}\n` +
       `Ketik /registrasi untuk input data baru.`
     );
   }
@@ -543,16 +470,12 @@ class InputProcessor {
     switch (step) {
       case FormStep.NAMA:
         if (text.length < 2) {
-          await ctx.reply(
-            "❌ Nama minimal 2 karakter. Silakan masukkan kembali:"
-          );
+          await ctx.reply("❌ Nama minimal 2 karakter. Silakan masukkan kembali:");
           return;
         }
         ctx.session.nama = text.trim();
         ctx.session.step = FormStep.NO_HP_1;
-        await ctx.reply(Messages.PROMPTS[FormStep.NO_HP_1], {
-          parse_mode: "Markdown",
-        });
+        await ctx.reply(Messages.PROMPTS[FormStep.NO_HP_1], { parse_mode: "Markdown" });
         break;
 
       case FormStep.NO_HP_1:
@@ -564,111 +487,81 @@ class InputProcessor {
         }
         ctx.session.no_hp_1 = text.trim();
         ctx.session.step = FormStep.NO_HP_2;
-        await ctx.reply(Messages.PROMPTS[FormStep.NO_HP_2], {
-          parse_mode: "Markdown",
-        });
+        await ctx.reply(Messages.PROMPTS[FormStep.NO_HP_2], { parse_mode: "Markdown" });
         break;
 
       case FormStep.NO_HP_2:
         if (text !== "-" && text !== "" && !Validators.isValidPhone(text)) {
-          await ctx.reply(
-            "❌ Format nomor HP tidak valid atau ketik '-' jika tidak ada"
-          );
+          await ctx.reply("❌ Format nomor HP tidak valid atau ketik '-' jika tidak ada");
           return;
         }
         ctx.session.no_hp_2 = text === "-" ? "" : text.trim();
         ctx.session.step = FormStep.EMAIL;
-        await ctx.reply(Messages.PROMPTS[FormStep.EMAIL], {
-          parse_mode: "Markdown",
-        });
+        await ctx.reply(Messages.PROMPTS[FormStep.EMAIL], { parse_mode: "Markdown" });
         break;
 
       case FormStep.EMAIL:
         if (!Validators.isValidEmail(text)) {
-          await ctx.reply(
-            "❌ Format email tidak valid. Contoh: nama@domain.com"
-          );
+          await ctx.reply("❌ Format email tidak valid. Contoh: nama@domain.com");
           return;
         }
         ctx.session.email = text.trim().toLowerCase();
         ctx.session.step = FormStep.ALAMAT;
-        await ctx.reply(Messages.PROMPTS[FormStep.ALAMAT], {
-          parse_mode: "Markdown",
-        });
+        await ctx.reply(Messages.PROMPTS[FormStep.ALAMAT], { parse_mode: "Markdown" });
         break;
 
       case FormStep.ALAMAT:
         if (text.length < 10) {
-          await ctx.reply(
-            "❌ Alamat terlalu singkat. Masukkan alamat lengkap minimal 10 karakter:"
-          );
+          await ctx.reply("❌ Alamat terlalu singkat. Masukkan alamat lengkap minimal 10 karakter:");
           return;
         }
         ctx.session.alamat = text.trim();
         ctx.session.step = FormStep.KOORDINAT;
-        await ctx.reply(Messages.PROMPTS[FormStep.KOORDINAT], {
-          parse_mode: "Markdown",
-        });
+        await ctx.reply(Messages.PROMPTS[FormStep.KOORDINAT], { parse_mode: "Markdown" });
         break;
 
       case FormStep.KOORDINAT:
         if (!Validators.isValidCoordinate(text)) {
-          await ctx.reply(
-            "❌ Format koordinat tidak valid. Contoh: -6.2088,106.8456 atau ketik '-'"
-          );
+          await ctx.reply("❌ Format koordinat tidak valid. Contoh: -6.2088,106.8456 atau ketik '-'");
           return;
         }
         ctx.session.kordinat = text === "-" ? "" : text.trim();
         ctx.session.step = FormStep.NAMA_PIC;
-        await ctx.reply(Messages.PROMPTS[FormStep.NAMA_PIC], {
-          parse_mode: "Markdown",
-        });
+        await ctx.reply(Messages.PROMPTS[FormStep.NAMA_PIC], { parse_mode: "Markdown" });
         break;
 
       case FormStep.NAMA_PIC:
         if (text.length < 2) {
-          await ctx.reply(
-            "❌ Nama PIC minimal 2 karakter. Silakan masukkan kembali:"
-          );
+          await ctx.reply("❌ Nama PIC minimal 2 karakter. Silakan masukkan kembali:");
           return;
         }
         ctx.session.nama_pic = text.trim();
         ctx.session.step = FormStep.TTL_PIC;
-        await ctx.reply(Messages.PROMPTS[FormStep.TTL_PIC], {
-          parse_mode: "Markdown",
-        });
+        await ctx.reply(Messages.PROMPTS[FormStep.TTL_PIC], { parse_mode: "Markdown" });
         break;
 
       case FormStep.TTL_PIC:
         if (!Validators.isValidDate(text)) {
-          await ctx.reply(
-            "❌ Format tanggal tidak valid. Gunakan format DD-MM-YYYY, contoh: 15-08-1990"
-          );
+          await ctx.reply("❌ Format tanggal tidak valid. Gunakan format DD-MM-YYYY, contoh: 15-08-1990");
           return;
         }
         ctx.session.ttl_pic = text.trim();
         ctx.session.step = FormStep.NO_KTP;
-        await ctx.reply(Messages.PROMPTS[FormStep.NO_KTP], {
-          parse_mode: "Markdown",
-        });
+        await ctx.reply(Messages.PROMPTS[FormStep.NO_KTP], { parse_mode: "Markdown" });
         break;
 
       case FormStep.NO_KTP:
         if (!Validators.isValidKTP(text)) {
-          await ctx.reply(
-            "❌ Nomor KTP harus 16 digit angka. Silakan periksa kembali:"
-          );
+          await ctx.reply("❌ Nomor KTP harus 16 digit angka. Silakan periksa kembali:");
           return;
         }
         ctx.session.no_ktp = text.trim();
         ctx.session.step = FormStep.DATEL_SELECTION;
-        await SelectionHandlers.showDatelSelection(ctx);
+        await SelectionHandlers.showWilayahSelection(ctx);
         break;
 
       default:
-        await ctx.reply(
-          "Ketik /registrasi untuk mulai input data baru atau /lanjutkan untuk melanjutkan."
-        );
+        await ctx.reply("Ketik /registrasi untuk mulai input data baru atau /lanjutkan untuk melanjutkan.");
     }
   }
 
@@ -688,7 +581,7 @@ class InputProcessor {
       }
     }
     if (step === FormStep.DATEL_SELECTION) {
-      await SelectionHandlers.showDatelSelection(ctx);
+      await SelectionHandlers.showWilayahSelection(ctx);
     } else if (step === FormStep.PAKET_SELECTION) {
       await SelectionHandlers.showPaketSelection(ctx);
     } else if (step === FormStep.SALES_SELECTION) {
@@ -720,7 +613,7 @@ bot.command("help", (ctx) => {
     "🔄 *Proses Registrasi:*\n" +
     "1. Data pribadi (nama, HP, email, alamat)\n" +
     "2. Data PIC (nama, TTL, KTP)\n" +
-    "3. Pilih datel, paket, dan sales\n" +
+    "3. Pilih wilayah, paket, dan sales\n" +
     "4. Upload dokumen (KTP, selfie, bukti usaha, NIWP)\n\n" +
     "💡 *Tips:*\n" +
     "• Pastikan foto/dokumen jelas dan tidak blur\n" +
@@ -741,7 +634,7 @@ bot.command("lanjutkan", (ctx) => {
 });
 
 bot.on("text", async (ctx) => {
-  const text = ctx.message.text;
+  const text = (ctx.message as any).text;
 
   if (text.startsWith("/")) {
     return;
@@ -750,10 +643,10 @@ bot.on("text", async (ctx) => {
   await InputProcessor.processTextInput(ctx, text);
 });
 
-bot.action(/^datel_(.+)$/, async (ctx) => {
+bot.action(/^wilayah_(.+)$/, async (ctx) => {
   try {
-    const datelId = ctx.match[1];
-    ctx.session.datel_id = datelId;
+    const wilayahId = (ctx as any).match[1];
+    (ctx.session as any).wilayah_id = wilayahId;
     ctx.session.step = FormStep.PAKET_SELECTION;
 
     await ctx.answerCbQuery(Messages.SUCCESS.DATEL_SELECTED);
@@ -766,7 +659,7 @@ bot.action(/^datel_(.+)$/, async (ctx) => {
 
 bot.action(/^paket_(.+)$/, async (ctx) => {
   try {
-    const paketId = ctx.match[1];
+    const paketId = (ctx as any).match[1];
     ctx.session.paket_id = paketId;
     ctx.session.step = FormStep.SALES_SELECTION;
 
@@ -780,15 +673,13 @@ bot.action(/^paket_(.+)$/, async (ctx) => {
 
 bot.action(/^sales_(.+)$/, async (ctx) => {
   try {
-    const salesId = ctx.match[1];
+    const salesId = (ctx as any).match[1];
     ctx.session.sales_id = salesId;
     ctx.session.step = FormStep.FOTO_KTP;
 
     await ctx.answerCbQuery(Messages.SUCCESS.SALES_SELECTED);
     await ctx.deleteMessage();
-    await ctx.reply(Messages.PROMPTS[FormStep.FOTO_KTP], {
-      parse_mode: "Markdown",
-    });
+    await ctx.reply(Messages.PROMPTS[FormStep.FOTO_KTP], { parse_mode: "Markdown" });
   } catch (error) {
     await ErrorHandler.handleError(ctx, error);
   }
@@ -815,11 +706,11 @@ bot.on("photo", async (ctx) => {
   }
 
   try {
-    const photo = ctx.message.photo[ctx.message.photo.length - 1];
+    const photo = (ctx.message as any).photo[(ctx.message as any).photo.length - 1];
     const fileId = photo.file_id;
 
     const file = await ctx.telegram.getFile(fileId);
-    const fileUrl = `https://api.telegram.org/file/bot${process.env.BOT_TOKEN}/${file.file_path}`;
+    const fileUrl = `https://api.telegram.org/file/bot${process.env.TELEGRAM_BOT_TOKEN}/${file.file_path}`;
 
     const response = await fetch(fileUrl);
     if (!response.ok) {
@@ -830,15 +721,10 @@ bot.on("photo", async (ctx) => {
 
     const progressMessage = await ctx.reply("🔄 Mengupload file...");
 
-    await FileUploadHandler.handleFileUpload(
-      ctx,
-      fileBuffer,
-      "photo.jpg",
-      step
-    );
+    await FileUploadHandler.handleFileUpload(ctx, fileBuffer, "photo.jpg", step);
 
     try {
-      await ctx.telegram.deleteMessage(ctx.chat.id, progressMessage.message_id);
+      await ctx.telegram.deleteMessage((ctx.chat as any).id, (progressMessage as any).message_id);
     } catch (e) {}
   } catch (error) {
     await ErrorHandler.handleError(ctx, error, Messages.ERRORS.UPLOAD_FAILED);
@@ -854,7 +740,7 @@ bot.on("document", async (ctx) => {
   }
 
   try {
-    const document = ctx.message.document;
+    const document = (ctx.message as any).document;
     const fileId = document.file_id;
     const fileName = document.file_name || "document";
 
@@ -864,7 +750,7 @@ bot.on("document", async (ctx) => {
     }
 
     const file = await ctx.telegram.getFile(fileId);
-    const fileUrl = `https://api.telegram.org/file/bot${process.env.BOT_TOKEN}/${file.file_path}`;
+    const fileUrl = `https://api.telegram.org/file/bot${process.env.TELEGRAM_BOT_TOKEN}/${file.file_path}`;
 
     const response = await fetch(fileUrl);
     if (!response.ok) {
@@ -878,7 +764,7 @@ bot.on("document", async (ctx) => {
     await FileUploadHandler.handleFileUpload(ctx, fileBuffer, fileName, step);
 
     try {
-      await ctx.telegram.deleteMessage(ctx.chat.id, progressMessage.message_id);
+      await ctx.telegram.deleteMessage((ctx.chat as any).id, (progressMessage as any).message_id);
     } catch (e) {}
   } catch (error) {
     await ErrorHandler.handleError(ctx, error, Messages.ERRORS.UPLOAD_FAILED);
@@ -887,54 +773,21 @@ bot.on("document", async (ctx) => {
 
 bot.on("message", async (ctx) => {
   const msg: any = ctx.message;
-  if (
-    typeof msg.text === "undefined" &&
-    typeof msg.photo === "undefined" &&
-    typeof msg.document === "undefined"
-  ) {
-    await ctx.reply(
-      "❌ Tipe file tidak didukung. Silakan kirim foto atau dokumen (PDF, Word, dll)."
-    );
+  if (typeof msg.text === "undefined" && typeof msg.photo === "undefined" && typeof msg.document === "undefined") {
+    await ctx.reply("❌ Tipe file tidak didukung. Silakan kirim foto atau dokumen (PDF, Word, dll).");
   }
 });
 
 bot.catch(async (err, ctx) => {
   ErrorHandler.logError("Bot Error", err);
   try {
-    await ctx.reply(
-      "❌ Terjadi kesalahan sistem. Silakan coba lagi atau hubungi admin."
-    );
+    await ctx.reply("❌ Terjadi kesalahan sistem. Silakan coba lagi atau hubungi admin.");
   } catch (e) {
     console.error("Failed to send error message:", e);
   }
 });
 
-const shutdown = (signal: string) => {
-  console.log(`\n🛑 Received ${signal}. Graceful shutdown...`);
+// Export webhook callback for Hono route
+export const telegramWebhookCallback = bot.webhookCallback("/api/bot/telegram/webhook");
 
-  try {
-    bot.stop(signal);
-    console.log("✅ Bot stopped gracefully");
-    process.exit(0);
-  } catch (err) {
-    console.error("❌ Error during shutdown:", err);
-    process.exit(1);
-  }
-};
-
-process.once("SIGINT", () => shutdown("SIGINT"));
-process.once("SIGTERM", () => shutdown("SIGTERM"));
-
-bot
-  .launch({
-    allowedUpdates: ["message", "callback_query"],
-  })
-  .then(() => {
-    console.log("🤖 Bot started successfully!");
-    console.log(`📱 Bot username: @${bot.botInfo?.username}`);
-    console.log(`🆔 Bot ID: ${bot.botInfo?.id}`);
-  })
-  .catch((err) => {
-    console.error("❌ Failed to start bot:", err);
-    process.exit(1);
-  });
+export default bot;

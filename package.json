@@ -1,10 +1,13 @@
 {
-  "name": "hono-indibizprayamadiun",
+  "name": "hono",
+  "type": "module",
   "scripts": {
     "dev": "bun run --hot src/index.ts",
-    "db:seed": "tsx prisma/seed/index.ts",
+    "db:studio": "prisma studio --schema=./prisma/",
+    "db:seed": "bun /prisma/seed.ts",
     "db:migrate": "bunx prisma migrate dev --name",
     "db:generate": "bunx prisma generate",
+    "db:push": "prisma db push --schema=./prisma/",
     "tunels": "sudo cloudflared tunnel --url http://0.0.0.0:8080",
     "postinstall": "prisma generate"
   },
@@ -13,8 +16,6 @@
     "@telegraf/session": "^2.0.0-beta.7",
     "@types/jsonwebtoken": "^9.0.10",
     "bcryptjs": "^3.0.2",
-    "gdrive-node-uploader": "^1.2.4",
-    "googleapis": "^160.0.0",
     "hono": "^4.9.7",
     "jsonwebtoken": "^9.0.2",
     "jwt-decode": "^4.0.0",
@@ -22,10 +23,14 @@
     "prisma": "^6.16.2",
     "stream": "^0.0.3",
     "telegraf": "^4.16.3",
+    "uuid": "^13.0.0",
     "vercel": "^48.1.1",
+    "xlsx": "^0.18.5",
     "zod": "^4.1.11"
   },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/node": "^20.11.17",
+    "tsx": "^4.20.6",
+    "typescript": "^5.8.3"
   }
 }

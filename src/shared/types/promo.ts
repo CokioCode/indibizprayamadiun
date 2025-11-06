@@ -1,51 +1,35 @@
 import { z } from "zod";
-
-export const JenisPromoEnum = z.enumType(["DISKON", "CASHBACK", "BONUS", "DLL"]);
-export type JenisPromo = z.infer<typeof JenisPromoEnum>;
+import { TipePromoEnum } from "./enum";
 
 export const promoSchemaCreate = z
   .object({
     nama: z
       .string()
       .min(3, "Nama promo minimal 3 karakter")
-      .max(100, "Nama promo maksimal 100 karakter")
+      .max(150, "Nama promo maksimal 150 karakter")
       .refine((val) => val.trim().length > 0, "Nama promo wajib diisi"),
-    deskripsi: z
-      .string()
-      .min(5, "Deskripsi promo minimal 5 karakter")
-      .max(255, "Deskripsi promo maksimal 255 karakter")
-      .refine((val) => val.trim().length > 0, {
-        message: "Deskripsi promo wajib diisi",
-      }),
-    jenis: JenisPromoEnum,
-    diskon: z
-      .number("Diskon wajib diisi")
-      .min(0, "Diskon minimal 0")
-      .max(100, "Diskon maksimal 100"),
-    mulai: z.coerce
-      .date()
-      .refine((date) => date instanceof Date && !isNaN(date.getTime()), {
-        message: "Tanggal mulai promo wajib diisi",
-        path: ["mulai"],
-      }),
-    akhir: z.coerce
-      .date()
-      .refine((date) => date instanceof Date && !isNaN(date.getTime()), {
-        message: "Tanggal akhir promo wajib diisi",
-        path: ["akhir"],
-      }),
-    is_global: z.boolean("Status global promo wajib diisi"),
+    deskripsi: z.string().optional(),
+    tipe_promo: TipePromoEnum,
+    diskon_persen: z.number().min(0).max(100).optional(),
+    diskon_nominal: z.number().min(0).optional(),
+    psb_normal: z.number().min(0).default(500).optional(),
+    psb_diskon_persen: z.number().min(0).max(100).default(70).optional(),
+    psb_setelah_diskon: z.number().min(0).default(150).optional(),
+    is_global: z.boolean().default(false).optional(),
+    tanggal_mulai: z.coerce.date(),
+    tanggal_selesai: z.coerce.date(),
+    aktif: z.boolean().optional(),
   })
   .refine(
     (data) => {
-      if (data.mulai && data.akhir) {
-        return data.akhir > data.mulai;
+      if (data.tanggal_mulai && data.tanggal_selesai) {
+        return data.tanggal_selesai > data.tanggal_mulai;
       }
       return true;
     },
     {
-      message: "Tanggal akhir promo harus setelah tanggal mulai promo",
-      path: ["akhir"],
+      message: "Tanggal selesai harus setelah tanggal mulai",
+      path: ["tanggal_selesai"],
     }
   );
 

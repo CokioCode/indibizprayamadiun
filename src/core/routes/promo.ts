@@ -6,6 +6,7 @@ import { promoSchemaCreate, promoSchemaUpdate } from "../../shared/types/promo";
 const promoRoutes = new Hono();
 
 promoRoutes.get("/", promoController.index);
+promoRoutes.get("/list", promoController.list);
 promoRoutes.get("/:id", promoController.show);
 promoRoutes.post("/", validateBody(promoSchemaCreate), promoController.create);
 promoRoutes.put(
@@ -13,6 +14,12 @@ promoRoutes.put(
   validateBody(promoSchemaUpdate),
   promoController.update
 );
+promoRoutes.patch(
+  "/:id",
+  validateBody(promoSchemaUpdate),
+  promoController.update
+);
 promoRoutes.delete("/:id", promoController.delete);
+promoRoutes.post("/import", promoController.import);
 
 export default promoRoutes;

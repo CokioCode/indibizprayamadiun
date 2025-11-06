@@ -28,6 +28,8 @@ class MegaUploadUtils {
   private password: string;
   private storage: Storage | null = null;
   public isLoggedIn: boolean = false;
+  private loginPromise: Promise<boolean> | null = null;
+  private folderCache: Map<string, any> = new Map();
 
   constructor(email: string, password: string) {
     this.email = email;
@@ -37,34 +39,36 @@ class MegaUploadUtils {
   async login(): Promise<boolean> {
     try {
       if (this.isLoggedIn && this.storage) {
-        console.log("✅ Already logged in to MEGA");
         return true;
       }
+      if (this.loginPromise) {
+        return this.loginPromise;
+      }
 
-      console.log("🔑 Logging in to MEGA...");
       this.storage = new Storage({
         email: this.email,
         password: this.password,
       });
 
-      await new Promise<void>((resolve, reject) => {
+      this.loginPromise = new Promise<boolean>((resolve, reject) => {
         const timeout = setTimeout(() => {
+          this.loginPromise = null;
           reject(new Error("MEGA login timeout after 30 seconds"));
         }, 30000);
 
         this.storage!.on("ready", () => {
           clearTimeout(timeout);
           this.isLoggedIn = true;
-          console.log("✅ Successfully logged in to MEGA");
-          resolve();
+          this.loginPromise = null;
+          resolve(true);
         });
       });
 
-      return true;
+      return await this.loginPromise;
     } catch (error) {
-      console.error("❌ Login exception:", (error as Error).message);
       this.isLoggedIn = false;
       this.storage = null;
+      this.loginPromise = null;
       throw error;
     }
   }
@@ -251,6 +255,11 @@ class MegaUploadUtils {
       throw new Error("Storage not initialized");
     }
 
+    const cacheKey = (parentFolder?.name ? parentFolder.name + "/" : "") + folderPath;
+    if (this.folderCache.has(cacheKey)) {
+      return this.folderCache.get(cacheKey);
+    }
+
     const parent = parentFolder || this.storage.root;
     const folderParts = folderPath
       .split("/")
@@ -265,34 +274,32 @@ class MegaUploadUtils {
 
       if (existingFolder) {
         currentFolder = existingFolder;
-        console.log(`📁 Found existing folder: ${folderName}`);
       } else {
-        console.log(`📁 Creating folder: ${folderName}`);
         try {
-          // Add timeout untuk mkdir
           currentFolder = (await Promise.race([
             currentFolder.mkdir(folderName),
             new Promise((_, reject) =>
               setTimeout(
-                () =>
-                  reject(new Error(`Timeout creating folder: ${folderName}`)),
+                () => reject(new Error(`Timeout creating folder: ${folderName}`)),
                 10000
               )
             ),
           ])) as any;
-
-          // Wait untuk folder creation
-          await new Promise((resolve) => setTimeout(resolve, 2000));
         } catch (error) {
-          console.error(`Failed to create folder ${folderName}:`, error);
-          // Skip folder creation jika error, langsung return current folder
-          console.log(
-            `⚠️ Skipping folder creation for ${folderName}, using current folder`
+          // If mkdir fails, retry by listing children again in case of race
+          const retryExisting = currentFolder.children?.find(
+            (child: any) => child.name === folderName && child.directory
           );
+          if (retryExisting) {
+            currentFolder = retryExisting;
+          } else {
+            throw error;
+          }
         }
       }
     }
 
+    this.folderCache.set(cacheKey, currentFolder);
     return currentFolder;
   }
 
@@ -360,3 +367,10 @@ class MegaUploadUtils {
 
 export default MegaUploadUtils;
 export { UploadResult, AccountInfo, UploadOptions };
+
+// Shared singleton instance to reuse login/session across the app
+export const megaClient = new MegaUploadUtils(
+  process.env.MEGA_EMAIL as string,
+  process.env.MEGA_PASSWORD as string
+);
+

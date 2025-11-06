@@ -1,23 +1,28 @@
 import { Hono } from "hono";
-
-import authRoutes from "./auth";
-import agencRoutes from "./agenc";
-import datelRoutes from "./datel";
-import promoRoutes from "./promo";
-import paketRoutes from "./paket";
-import salesRoutes from "./sales";
-import kategoriRoutes from "./kategori";
-import registrasiIndibizRoutes from "./registrasi_indibiz";
+import agencRoutes from "./agenc.js";
+import authRoutes from "./auth.js";
+import kategoriRoutes from "./kategori.js";
+import paketRoutes from "./paket.js";
+import wilayahRoutes from "./wilayah.js";
+import promoRoutes from "./promo.js";
+import registrasiIndibizRoutes from "./registrasi_indibiz.js";
+import salesRoutes from "./sales.js";
+import stoRoutes from "./sto.js";
+import prodigiRoutes from "./prodigi.js";
+import botRoutes from "./bot.js";
 
 const routes = new Hono().basePath("/api");
 
 routes.route("/auth", authRoutes);
 routes.route("/categori", kategoriRoutes);
 routes.route("/agenc", agencRoutes);
-routes.route("/datel", datelRoutes);
+routes.route("/sto", stoRoutes);
+routes.route("/wilayah", wilayahRoutes);
 routes.route("/promo", promoRoutes);
 routes.route("/paket", paketRoutes);
 routes.route("/sales", salesRoutes);
 routes.route("/registrasi_indibiz", registrasiIndibizRoutes);
+routes.route("/prodigi", prodigiRoutes);
+routes.route("/bot", botRoutes);
 
 export { routes };

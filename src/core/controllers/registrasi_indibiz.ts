@@ -1,6 +1,11 @@
-import { asyncHandler, PaginationHelper, ResponseHelper } from "../../shared";
 import { Context } from "hono";
-import { RegistrasiIndibizModel } from "../../core/models/registrasi_indibiz";
+import * as XLSX from "xlsx";
+import { asyncHandler } from "../../shared/utils/asyncHandler.js";
+import {
+  PaginationHelper,
+  ResponseHelper,
+} from "../../shared/utils/response.js";
+import { RegistrasiIndibizModel } from "../models/registrasi_indibiz.js";
 
 export const registrasiIndibizController = {
   index: asyncHandler(async (c: Context): Promise<Response> => {
@@ -55,6 +60,16 @@ export const registrasiIndibizController = {
       "Berhasil mengupdate registrasi indibiz"
     );
   }),
+  setKodeSc: asyncHandler(async (c: Context): Promise<Response> => {
+    const id = c.req.param("id");
+    const body = c.get("validatedBody");
+    const updated = await RegistrasiIndibizModel.setKodeSc(id, body);
+    return ResponseHelper.success(
+      c,
+      updated,
+      "Berhasil mengupdate status registrasi indibiz"
+    );
+  }),
   delete: asyncHandler(async (c: Context): Promise<Response> => {
     const id = c.req.param("id");
     await RegistrasiIndibizModel.destroy(id);
@@ -63,5 +78,18 @@ export const registrasiIndibizController = {
       null,
       "Berhasil menghapus registrasi indibiz"
     );
+  }),
+  import: asyncHandler(async (c: Context): Promise<Response> => {
+    const body = await c.req.parseBody();
+    const file = body["file"] as File;
+
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const workbook = XLSX.read(buffer, { type: "buffer" });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const data = XLSX.utils.sheet_to_json(sheet);
+
+    await RegistrasiIndibizModel.importExcelCustomers(data);
+
+    return ResponseHelper.success(c, null, "Berhasil import customers");
   }),
 };
