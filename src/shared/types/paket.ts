@@ -4,7 +4,7 @@ import {
   RatioEnum,
   JenisPaketEnum,
   TipeONTEnum,
-} from "./enum";
+} from "./enum.js";
 
 export const paketSchemaCreate = z.object({
   kode: z.string().optional().nullable(),
