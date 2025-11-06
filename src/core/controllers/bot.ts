@@ -1,7 +1,7 @@
 import { Context } from "hono";
-import { asyncHandler, ResponseHelper } from "../../shared/utils";
-import bot from "../../../bot/index";
-import Telegram from "../../integrations/telegram";
+import { asyncHandler, ResponseHelper } from "../../shared/utils/index.js";
+import bot from "../../../bot/index.js";
+import Telegram from "../../integrations/telegram/index.js";
 
 export const botController = {
   webhook: asyncHandler(async (c: Context): Promise<Response> => {

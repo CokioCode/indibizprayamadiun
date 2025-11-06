@@ -3,10 +3,10 @@ import {
   asyncHandler,
   PaginationHelper,
   ResponseHelper,
-} from "../../shared/utils";
+} from "../../shared/utils/index.js";
 import { Context } from "hono";
-import { PaketModel } from "../models";
-import { PaketInputCreate, PaketInputUpdate } from "../../shared/types/paket";
+import { PaketModel } from "../models/index.js";
+import { PaketInputCreate, PaketInputUpdate } from "../../shared/types/paket.js";
 
 export const paketController = {
   index: asyncHandler(async (c: Context): Promise<Response> => {

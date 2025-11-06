@@ -1,6 +1,6 @@
-import { prisma } from "../../integrations";
-import { BadRequestError, ConflictError, NotFoundError } from "../../shared";
-import { ProdigiInputCreate, ProdigiInputUpdate } from "../../shared/types/prodigi";
+import { prisma } from "../../integrations/index.js";
+import { BadRequestError, ConflictError, NotFoundError } from "../../shared/index.js";
+import { ProdigiInputCreate, ProdigiInputUpdate } from "../../shared/types/prodigi.js";
 
 export const ProdigiModel = {
   async index({ page = 1, limit = 10 }: { page?: number; limit?: number } = {}) {

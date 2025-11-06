@@ -1,7 +1,7 @@
 import { Hono } from "hono";
-import { authController } from "../../core";
-import { loginSchema } from "../../shared/types/auth";
-import { validateBody } from "../../core/middlewares/validation";
+import { authController } from "../../core/index.js";
+import { loginSchema } from "../../shared/types/auth.js";
+import { validateBody } from "../../core/middlewares/validation.js";
 
 const authRoutes = new Hono();
 

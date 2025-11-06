@@ -3,10 +3,10 @@ import {
   asyncHandler,
   PaginationHelper,
   ResponseHelper,
-} from "../../shared/utils";
+} from "../../shared/utils/index.js";
 import { Context } from "hono";
-import { PromoModel } from "../models";
-import { PromoInputCreate, PromoInputUpdate } from "../../shared/types/promo";
+import { PromoModel } from "../models/index.js";
+import { PromoInputCreate, PromoInputUpdate } from "../../shared/types/promo.js";
 
 export const promoController = {
   index: asyncHandler(async (c: Context): Promise<Response> => {

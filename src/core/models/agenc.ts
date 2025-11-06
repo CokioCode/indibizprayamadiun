@@ -1,5 +1,5 @@
-import { prisma } from "../../integrations";
-import { ConflictError, NotFoundError, BadRequestError } from "../../shared";
+import { prisma } from "../../integrations/index.js";
+import { ConflictError, NotFoundError, BadRequestError } from "../../shared/index.js";
 
 export const AgencModel = {
   async index({ page = 1, limit = 5 }: { page?: number; limit?: number } = {}) {

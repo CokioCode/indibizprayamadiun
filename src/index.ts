@@ -1,6 +1,6 @@
 import { Hono } from "hono";
-import { routes } from "./core";
-import { errorHandler } from "./core/middlewares/errorHandler";
+import { routes } from "./core/index.js";
+import { errorHandler } from "./core/middlewares/errorHandler.js";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 
@@ -9,7 +9,7 @@ const app = new Hono();
 app.use(
   "*",
   cors({
-    origin: "http://localhost:3000",
+    origin: "https://indibizrayamadiun.vercel.app",
     allowMethods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowHeaders: ["Content-Type", "Authorization"],
     credentials: true,

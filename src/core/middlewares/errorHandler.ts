@@ -1,5 +1,5 @@
 import { Context, Next } from "hono";
-import { AppError, ResponseHelper } from "../../shared";
+import { AppError, ResponseHelper } from "../../shared/index.js";
 import { ContentfulStatusCode } from "hono/utils/http-status";
 
 export const errorHandler = (error: any, c: Context) => {

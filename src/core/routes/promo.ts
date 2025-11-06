@@ -1,7 +1,7 @@
 import { Hono } from "hono";
-import { promoController } from "../../core";
-import { validateBody } from "../../core/middlewares/validation";
-import { promoSchemaCreate, promoSchemaUpdate } from "../../shared/types/promo";
+import { promoController } from "../../core/index.js";
+import { validateBody } from "../../core/middlewares/validation.js";
+import { promoSchemaCreate, promoSchemaUpdate } from "../../shared/types/promo.js";
 
 const promoRoutes = new Hono();
 

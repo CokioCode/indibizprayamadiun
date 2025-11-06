@@ -1,3 +1,3 @@
-import prisma from "./prisma";
+import prisma from "./prisma/index.js";
 
 export { prisma };

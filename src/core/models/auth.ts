@@ -1,13 +1,14 @@
-import prisma from "../../integrations/prisma";
+import prisma from "../../integrations/prisma/index.js";
 import {
   comparePassword,
   signToken,
   UnauthorizedError,
   NotFoundError,
-} from "../../shared";
+} from "../../shared/index.js";
+import { LoginInput } from "../../shared/types/auth.js";
 
 export const AuthModel = {
-  async login(data: { username: string; password: string }) {
+  async login(data: LoginInput) {
     try {
       const user = await prisma.auth.findUnique({
         where: { username: data.username },

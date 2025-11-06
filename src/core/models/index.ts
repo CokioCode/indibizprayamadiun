@@ -1,10 +1,10 @@
-import { AuthModel } from "./auth";
-import { AgencModel } from "./agenc";
-// import { DatelModel } from "./datel";
-import { PromoModel } from "./promo";
-import { PaketModel } from "./paket";
-import { SalesModel } from "./sales";
-import { ProdigiModel } from "./prodigi";
+import { AuthModel } from "./auth.js";
+import { AgencModel } from "./agenc.js";
+// import { DatelModel } from "./datel.js";
+import { PromoModel } from "./promo.js";
+import { PaketModel } from "./paket.js";
+import { SalesModel } from "./sales.js";
+import { ProdigiModel } from "./prodigi.js";
 
 export {
   AuthModel,

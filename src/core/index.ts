@@ -1,3 +1,3 @@
-export * from "./models";
-export * from "./controllers";
-export * from "./routes";
+export * from "./models/index.js";
+export * from "./controllers/index.js";
+export * from "./routes/index.js";

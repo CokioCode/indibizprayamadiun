@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { prodigiController } from "../../core/controllers/prodigi";
+import { prodigiController } from "../../core/controllers/prodigi.js";
 
 const prodigiRoutes = new Hono();
 

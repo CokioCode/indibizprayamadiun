@@ -1,9 +1,9 @@
 import { Context } from "hono";
 import * as XLSX from "xlsx";
-import { asyncHandler, PaginationHelper, ResponseHelper } from "../../shared/utils";
-import { ProdigiModel } from "../models";
-import { prodigiSchemaCreate, prodigiSchemaUpdate, ProdigiInputCreate, ProdigiInputUpdate } from "../../shared/types/prodigi";
-import { validateBody } from "../middlewares/validation";
+import { asyncHandler, PaginationHelper, ResponseHelper } from "../../shared/utils/index.js";
+import { ProdigiModel } from "../models/index.js";
+import { prodigiSchemaCreate, prodigiSchemaUpdate, ProdigiInputCreate, ProdigiInputUpdate } from "../../shared/types/prodigi.js";
+import { validateBody } from "../middlewares/validation.js";
 
 export const prodigiController = {
   index: asyncHandler(async (c: Context): Promise<Response> => {

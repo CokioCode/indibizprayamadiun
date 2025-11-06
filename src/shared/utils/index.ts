@@ -1,6 +1,6 @@
-import comparePassword from "./bcrypt";
-import { signToken, verifyToken } from "./jwt";
-import { ResponseHelper, PaginationHelper } from "./response";
+import comparePassword from "./bcrypt.js";
+import { signToken, verifyToken } from "./jwt.js";
+import { ResponseHelper, PaginationHelper } from "./response.js";
 import {
   AppError,
   ConflictError,
@@ -10,8 +10,8 @@ import {
   UnauthorizedError,
   ValidationError,
   BadRequestError,
-} from "./error";
-import { asyncHandler } from "./asyncHandler";
+} from "./error.js";
+import { asyncHandler } from "./asyncHandler.js";
 
 export {
   comparePassword,

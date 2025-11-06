@@ -1,7 +1,7 @@
 import { Hono } from "hono";
-import { agencController } from "../../core/controllers/agenc";
-import { validateBody } from "../../core/middlewares/validation";
-import { agencSchema } from "../../shared/types/agenc";
+import { agencController } from "../../core/controllers/agenc.js";
+import { validateBody } from "../../core/middlewares/validation.js";
+import { agencSchema } from "../../shared/types/agenc.js";
 
 const agencRoutes = new Hono();
 

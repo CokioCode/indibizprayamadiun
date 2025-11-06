@@ -3,10 +3,10 @@ import {
   asyncHandler,
   ResponseHelper,
   PaginationHelper,
-} from "../../shared/utils";
+} from "../../shared/utils/index.js";
 import { Context } from "hono";
-import { AgencModel } from "../models";
-import { AgencInput } from "../../shared/types/agenc";
+import { AgencModel } from "../models/index.js";
+import { AgencInput } from "../../shared/types/agenc.js";
 
 export const agencController = {
   index: asyncHandler(async (c: Context): Promise<Response> => {

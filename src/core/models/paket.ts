@@ -1,7 +1,7 @@
-import { prisma } from "../../integrations";
-import { ConflictError, NotFoundError, BadRequestError } from "../../shared";
-import { PaketInputCreate, PaketInputUpdate } from "../../shared/types/paket";
-import { computeEffectivePrice } from "../services/pricing";
+import { prisma } from "../../integrations/index.js";
+import { ConflictError, NotFoundError, BadRequestError } from "../../shared/index.js";
+import { PaketInputCreate, PaketInputUpdate } from "../../shared/types/paket.js";
+import { computeEffectivePrice } from "../services/pricing.js";
 
 export const PaketModel = {
   async index({ page = 1, limit = 5 }: { page?: number; limit?: number } = {}) {
