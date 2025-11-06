@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { botController } from "../../core/controllers/bot";
+import { botController } from "../../core/controllers/bot.js";
 
 const botRoutes = new Hono();
 
