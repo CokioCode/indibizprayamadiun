@@ -1,7 +1,7 @@
 import { Telegraf, Context, session, Markup } from "telegraf";
-import { prisma } from "src/integrations";
-import MegaUploadUtils from "src/integrations/mega";
-import { PaketModel } from "src/core/models/paket";
+import { prisma } from "src/integrations/index.js";
+import MegaUploadUtils from "src/integrations/mega/index.js";
+import { PaketModel } from "src/core/models/paket.js";
 
 enum FormStep {
   IDLE = 0,
