@@ -1,7 +1,6 @@
 import { Hono } from "hono";
 import agencRoutes from "./agenc.js";
 import authRoutes from "./auth.js";
-import kategoriRoutes from "./kategori.js";
 import paketRoutes from "./paket.js";
 import wilayahRoutes from "./wilayah.js";
 import promoRoutes from "./promo.js";
@@ -14,7 +13,6 @@ import botRoutes from "./bot.js";
 const routes = new Hono().basePath("/api");
 
 routes.route("/auth", authRoutes);
-routes.route("/categori", kategoriRoutes);
 routes.route("/agenc", agencRoutes);
 routes.route("/sto", stoRoutes);
 routes.route("/wilayah", wilayahRoutes);
