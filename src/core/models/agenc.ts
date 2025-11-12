@@ -1,17 +1,24 @@
 import { prisma } from "../../integrations/index.js";
+import { Prisma } from "@prisma/client";
 import { ConflictError, NotFoundError, BadRequestError } from "../../shared/index.js";
 
 export const AgencModel = {
-  async index({ page = 1, limit = 5 }: { page?: number; limit?: number } = {}) {
+  async index({ page = 1, limit = 5, q }: { page?: number; limit?: number; q?: string } = {}) {
     try {
       const skip = (page - 1) * limit;
+      const where = q
+        ? {
+            nama: { contains: q, mode: Prisma.QueryMode.insensitive },
+          }
+        : undefined;
       const [data, total] = await Promise.all([
         prisma.agenc.findMany({
           skip,
           take: limit,
+          where,
           orderBy: { created_at: "desc" },
         }),
-        prisma.agenc.count(),
+        prisma.agenc.count({ where }),
       ]);
       return {
         data,

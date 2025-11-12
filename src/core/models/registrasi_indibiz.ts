@@ -550,13 +550,33 @@ class RegistrasiIndibizService {
     return uploadResults;
   }
 
-  async index({ page = 1, limit = 5 }: { page?: number; limit?: number } = {}) {
+  async index({ page = 1, limit = 5, q }: { page?: number; limit?: number; q?: string } = {}) {
     try {
       const skip = (page - 1) * limit;
+      const where: any = q
+        ? {
+            OR: [
+              { nama: { contains: q, mode: "insensitive" as const } },
+              { email: { contains: q, mode: "insensitive" as const } },
+              { alamat: { contains: q, mode: "insensitive" as const } },
+              { no_hp_1: { contains: q, mode: "insensitive" as const } },
+              { no_hp_2: { contains: q, mode: "insensitive" as const } },
+              { nomer_ao: { contains: q, mode: "insensitive" as const } },
+              { wilayah: { nama: { contains: q, mode: "insensitive" as const } } },
+              { paket: { nama: { contains: q, mode: "insensitive" as const } } },
+              { sales: { OR: [
+                { nama: { contains: q, mode: "insensitive" as const } },
+                { kode_sales: { contains: q, mode: "insensitive" as const } },
+                { email: { contains: q, mode: "insensitive" as const } },
+              ] } },
+            ],
+          }
+        : undefined;
       const [data, total] = await Promise.all([
         prisma.registrasiIndibiz.findMany({
           skip,
           take: limit,
+          where,
           orderBy: { created_at: "desc" },
           include: {
             paket: true,
@@ -564,7 +584,7 @@ class RegistrasiIndibizService {
             wilayah: true,
           },
         }),
-        prisma.registrasiIndibiz.count(),
+        prisma.registrasiIndibiz.count({ where }),
       ]);
       return {
         data,
@@ -1031,6 +1051,11 @@ class RegistrasiIndibizService {
             ttl_pic: ttl_pic.trim(),
             no_ktp: no_ktp.trim(),
             email: email.trim(),
+            // Prefer 'ao_number' then 'nomer_ao' from Excel for AO number
+            nomer_ao:
+              ((row as any).ao_number?.toString?.() || (row as any).nomer_ao?.toString?.() || "").trim(),
+            // Take keterangan directly from Excel if present
+            keterangan: ((row as any).keterangan?.toString?.() || "").trim(),
             foto_ktp: foto_ktp?.trim() || "",
             foto_selfie: foto_selfie?.trim() || "",
             bukti_usaha: bukti_usaha?.trim() || "",

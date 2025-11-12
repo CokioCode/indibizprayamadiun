@@ -4,7 +4,8 @@
   "scripts": {
     "dev": "bun run --hot src/index.ts",
     "db:studio": "prisma studio --schema=./prisma/",
-    "db:seed": "bun /prisma/seed.ts",
+    "db:seed": "bun prisma/seed.ts",
+    "db:seed-user": "bun prisma/seed/user-seed.ts",
     "db:migrate": "bunx prisma migrate dev --name",
     "db:generate": "bunx prisma generate",
     "db:push": "prisma db push --schema=./prisma/",

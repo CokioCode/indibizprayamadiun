@@ -10,13 +10,35 @@ import {
 } from "../../shared/utils/error.js";
 
 export const SalesModel = {
-  async index({ page = 1, limit = 5 }: { page?: number; limit?: number } = {}) {
+  async index({ page = 1, limit = 5, q }: { page?: number; limit?: number; q?: string } = {}) {
     try {
       const skip = (page - 1) * limit;
+      const baseWhere: any = {
+        status: {
+          in: ["ACTIVE"],
+        },
+      };
+      const where = q
+        ? {
+            ...baseWhere,
+            OR: [
+              { nama: { contains: q, mode: "insensitive" } },
+              { kode_sales: { contains: q, mode: "insensitive" } },
+              { email: { contains: q, mode: "insensitive" } },
+              { agency: { nama: { contains: q, mode: "insensitive" } } },
+              { wilayah: { nama: { contains: q, mode: "insensitive" } } },
+              { sto: { OR: [
+                { name: { contains: q, mode: "insensitive" } },
+                { abbreviation: { contains: q, mode: "insensitive" } },
+              ] } },
+            ],
+          }
+        : baseWhere;
       const [data, total] = await Promise.all([
         prisma.sales.findMany({
           skip,
           take: limit,
+          where,
           include: {
             agency: true,
             wilayah: true,
@@ -24,13 +46,7 @@ export const SalesModel = {
           },
           orderBy: { created_at: "desc" },
         }),
-        prisma.sales.count({
-          where: {
-            status: {
-              in: ["ACTIVE"],
-            },
-          },
-        }),
+        prisma.sales.count({ where }),
       ]);
       return {
         data,

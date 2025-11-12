@@ -58,6 +58,13 @@
 //   return (k || "").trim().toLowerCase();
 // }
 
+// function superKey(k?: string | null) {
+//   return (k || "")
+//     .toLowerCase()
+//     .replace(/[^a-z0-9]+/g, "") // remove non-alphanumeric
+//     .trim();
+// }
+
 // type Row = Record<string, any>;
 
 // function readSheetRows(filePath: string, sheetName?: string): Row[] {
@@ -112,6 +119,7 @@
 //   foto_lokasi: ["FOTO LOKASI INSTALASI (Mohon difotokan Full Bangunannya)", "foto_lokasi"],
 //   nomer_ao: ["NOMOR AO", "nomer_ao"],
 //   status: ["STATUS SC AO", "status"],
+//   created_at: ["3", "Tanggal Input", "Timestamp"],
 // };
 
 // function normalizeKeyName(s: string) {
@@ -149,26 +157,29 @@
 //   return null;
 // }
 
-// async function ensureDefaultAgency(): Promise<string> {
-//   const name = "Default Agency";
-//   if (DRY_RUN) {
-//     // simulate default agency id in dry-run
-//     return `dryrun:agency:${lowerKey(name)}`;
+// function firstByHeaderIncludes(row: Row, needles: string[]) {
+//   const entries = Object.keys(row).map((orig) => ({ orig, norm: normalizeKeyName(orig) }));
+//   for (const n of entries) {
+//     for (const needle of needles) {
+//       const nn = normalizeKeyName(needle);
+//       if (n.norm.includes(nn)) {
+//         const v = row[n.orig];
+//         if (v !== undefined && v !== null && String(v).trim() !== "") return v;
+//       }
+//     }
 //   }
-//   const ag = await prisma.agenc.upsert({
-//     where: { nama: name },
-//     update: {},
-//     create: { nama: name },
-//   });
-//   return ag.id;
+//   return null;
 // }
 
+// // Tidak ada Default Agency. Agency harus ada pada sumber data.
 // async function ensureAgencyByName(name: string): Promise<string> {
-//   if (!name) return await ensureDefaultAgency();
+//   if (!name || !name.trim()) {
+//     throw new Error("Agency kosong pada data Sales");
+//   }
 //   if (DRY_RUN) return `dryrun:agency:${lowerKey(name)}`;
 //   const existing = await prisma.agenc.findFirst({ where: { nama: name }, select: { id: true } });
 //   if (existing) return existing.id;
-//   if (!AUTO_CREATE_REFS) return await ensureDefaultAgency();
+//   if (!AUTO_CREATE_REFS) throw new Error(`Agency '${name}' tidak ditemukan`);
 //   const created = await prisma.agenc.create({ data: { nama: name } });
 //   return created.id;
 // }
@@ -217,26 +228,53 @@
 
 //     // Build candidates dynamically from all sheet names to catch variations
 //     const allNames = wb.SheetNames;
-//     const candidateSheetNames = allNames.filter((n) => {
-//       const s = n.toUpperCase();
-//       return (
-//         s.includes("NEW KODE SALES AGENCY") ||
-//         s.includes("KODE SALES AGENCY") ||
-//         s.includes("DATA SALES LAMA") ||
-//         s === "SALES"
-//       );
-//     });
+//     const candidateSheetNames = allNames
+//       .filter((n) => {
+//         const s = n.toUpperCase();
+//         return (
+//           s.includes("NEW KODE SALES AGENCY") ||
+//           s.includes("KODE SALES AGENCY") ||
+//           s.includes("DATA SALES LAMA") ||
+//           s === "SALES"
+//         );
+//       })
+//       // Pastikan 'NEW KODE SALES AGENCY' diproses lebih dulu agar datanya diprioritaskan
+//       .sort((a, b) => {
+//         const A = a.toUpperCase();
+//         const B = b.toUpperCase();
+//         const score = (x: string) =>
+//           x.includes("NEW KODE SALES AGENCY") ? 0 :
+//           x === "SALES" ? 1 :
+//           x.includes("KODE SALES AGENCY") ? 2 :
+//           x.includes("DATA SALES LAMA") ? 3 : 4;
+//         return score(A) - score(B);
+//       });
 
 //     const map = new Map<string, any>();
-
+//     const superMap = new Map<string, string>(); // superKey -> mainKey
 //     const ALIAS = {
 //       nama: ["nama", "Nama", "sales", "Sales", "Nama Sales"],
 //       kode: ["Kode New", "kode_sales", "Kode Sales", "kode", "Kode"],
 //       email: ["Email", "email"],
 //       status: ["Status", "status"],
 //       agency: ["Agency", "agency", "Nama Agency", "Agency Name", "Supreme / Direct"],
-//       datel: ["Datel", "DATEL PEMASANGAN", "DATEL"],
-//       sto: ["STO", "sto"],
+//       datel: [
+//         "Datel",
+//         "DATEL",
+//         "DATEL PEMASANGAN",
+//         "Datel Sales",
+//         "DATEL SALES",
+//         "Sales Datel",
+//         "DATEL_SALES"
+//       ],
+//       sto: [
+//         "STO",
+//         "sto",
+//         "STO Sales",
+//         "Sales STO",
+//         "STO SALES",
+//         "STO_SALES"
+//       ],
 //       tgl_reg: ["Tanggal Registrasi", "Tgl Registrasi", "Tanggal Daftar"],
 //     } as const;
 
@@ -249,41 +287,54 @@
 //         const nama = safeString(namaRaw);
 //         if (!nama) continue;
 //         const key = lowerKey(nama.replace(/\s+/g, " "));
+//         const skey = superKey(nama);
 
 //         const kode_sales = safeString(getFirst(r, ALIAS.kode));
 //         const email = safeString(getFirst(r, ALIAS.email));
 //         const status = ((raw: any) => { const v = (raw || "").toString().trim().toUpperCase(); return v === "DELETED" ? "DELETED" : "ACTIVE"; })(safeString(getFirst(r, ALIAS.status))) as any;
 
 //         // Map Agency with priority to 'Supreme / Direct' column
-//         const supDirRaw = safeString((r as any)["Supreme / Direct"]) || null;
+//         // Cari kolom yang mengandung 'supreme'/'direct' di header bila nama kolom bervariasi
+//         const supDirHeaderVal = safeString(firstByHeaderIncludes(r, ["Supreme", "Direct"])) || null;
+//         const supDirRaw = safeString((r as any)["Supreme / Direct"]) || supDirHeaderVal || null;
 //         const mappedSupDir = supDirRaw
 //           ? (/SUPREME/i.test(supDirRaw) ? "Supreme" : /DIRECT/i.test(supDirRaw) ? "Direct" : null)
 //           : null;
-//         const agencyExplicit = safeString(getFirst(r, ["Agency", "agency", "Nama Agency", "Agency Name"])) || null;
+//         const agencyExplicit = safeString(getFirst(r, ["Agency", "agency", "Nama Agency", "Agency Name"]))
+//           || safeString(firstByHeaderIncludes(r, ["agency"]))
+//           || null;
 //         let agency_name = mappedSupDir || agencyExplicit;
 //         if (agency_name && agency_name.trim().toLowerCase() === nama.trim().toLowerCase()) {
 //           // Guard: if agency equals the sales name, treat as unknown to avoid creating per-sales agencies
 //           agency_name = null;
 //         }
 
-//         const datel_name = safeString(getFirst(r, ALIAS.datel));
-//         const sto_name = safeString(getFirst(r, ALIAS.sto));
+//         const datel_name = safeString(getFirst(r, ALIAS.datel))
+//           || safeString(firstByHeaderIncludes(r, ["datel"])) || null;
+//         const sto_name = safeString(getFirst(r, ALIAS.sto))
+//           || safeString(firstByHeaderIncludes(r, ["sto"])) || null;
 //         const tgl_reg_raw = getFirst(r, ALIAS.tgl_reg);
 //         const tgl_reg = tgl_reg_raw ? new Date(tgl_reg_raw as any) : null;
 
 //         const next = { nama, kode_sales, email, status, agency_name, datel_name, sto_name, tgl_reg };
 //         map.set(key, map.has(key) ? merge(map.get(key), next) : next);
-//       }
+//         // simpan peta superKey -> key agar mudah lookup dengan variasi nama
+//         if (!superMap.has(skey)) superMap.set(skey, key);      }
 //     }
 
-//     return map;
-//   } catch {
+//     // gabungkan superMap ke dalam map sebagai alias
+//     for (const [skey, key] of superMap.entries()) {
+//       if (map.has(key)) {
+//         map.set(skey, map.get(key));
+//       }
+//     }
+//     return map;  } catch {
 //     return new Map();
 //   }
 // }
 
 // async function maybeCreateWilayah(name: string, wilayahByName: Map<string, string>) {
-//   const key = lowerKey(name);
+//   const key = lowerKey(name.replace(/\s+/g, " "));
 //   const cached = wilayahByName.get(key);
 //   if (cached) return cached;
 //   if (!AUTO_CREATE_REFS) throw new Error(`Wilayah '${name}' tidak ditemukan`);
@@ -304,11 +355,10 @@
 
 // async function maybeCreateSales(name: string, salesByName: Map<string, string>, opts?: {
 //   wilayahByName?: Map<string, string>;
-//   agencyByName?: Map<string, string>;
 //   stoByName?: Map<string, string>;
 //   salesDetails?: Map<string, any>;
 // }) {
-//   const key = lowerKey(name);
+//   const key = lowerKey(name.replace(/\s+/g, " "));
 //   const existingId = salesByName.get(key);
 
 //   const mapStatusSales = (raw: string | null | undefined): any => {
@@ -316,19 +366,28 @@
 //     return s === "DELETED" ? "DELETED" : "ACTIVE";
 //   };
 
-//   const details = opts?.salesDetails?.get(key);
+//   let details = opts?.salesDetails?.get(key);
+//   if (!details) {
+//     // coba dengan superKey
+//     details = opts?.salesDetails?.get(superKey(name));
+//   }
+//   details = details || {};  const normalizedStatus = mapStatusSales(details?.status);
+//   if (normalizedStatus === "DELETED") {
+//     throw new Error(`Sales '${name}' berstatus DELETED, dilewati`);
+//   }
+
 //   const agencyName = details?.agency_name || null;
 //   const datelName = details?.datel_name || null;
 //   const stoName = details?.sto_name || null;
 
-//   // Resolve related refs (optionally autocreate if enabled)
+//   // Resolve related refs (agency wajib ada)
 //   const resolvedAgencyId = await ensureAgencyByName(agencyName || "");
-//   const resolvedWilayahId = datelName && opts?.agencyByName
-//     ? await maybeCreateWilayah(datelName, new Map())
+//   const resolvedWilayahId = datelName && opts?.wilayahByName
+//     ? await maybeCreateWilayah(datelName, opts.wilayahByName)
 //     : (datelName ? (await prisma.wilayah.findFirst({ where: { nama: datelName }, select: { id: true } }))?.id || null : null);
 //   const resolvedStoId = await maybeCreateSto(stoName);
 
-//   // If sales already exists, enrich missing fields
+//   // If sales already exists, enrich missing fields (tanpa menurunkan status menjadi DELETED)
 //   if (existingId) {
 //     if (DRY_RUN) return existingId;
 //     const current = await prisma.sales.findUnique({ where: { id: existingId }, select: {
@@ -342,8 +401,7 @@
 //       if (!current.wilayah_id && resolvedWilayahId) patch.wilayah_id = resolvedWilayahId;
 //       if (!current.sto_id && resolvedStoId) patch.sto_id = resolvedStoId;
 //       if (!current.tgl_reg && details?.tgl_reg) patch.tgl_reg = new Date(details.tgl_reg);
-//       const normalizedStatus = mapStatusSales(details?.status);
-//       if (current.status !== normalizedStatus) patch.status = normalizedStatus;
+//       if (normalizedStatus !== "DELETED" && current.status !== normalizedStatus) patch.status = normalizedStatus;
 //       if (Object.keys(patch).length > 0) {
 //         await prisma.sales.update({ where: { id: existingId }, data: patch });
 //       }
@@ -351,8 +409,7 @@
 //     return existingId;
 //   }
 
-//   if (!AUTO_CREATE_REFS) throw new Error(`Sales '${name}' tidak ditemukan`);
-
+//   if (!AUTO_CREATE_REFS) throw new Error(`Sales details not found: ${name}`);
 //   if (DRY_RUN) {
 //     const fakeId = `dryrun:sales:${key}`;
 //     salesByName.set(key, fakeId);
@@ -365,7 +422,7 @@
 //       nama: name,
 //       kode_sales: details?.kode_sales || null,
 //       email: details?.email || null,
-//       status: mapStatusSales(details?.status),
+//       status: normalizedStatus,
 //       agency_id: resolvedAgencyId,
 //       wilayah_id: resolvedWilayahId,
 //       sto_id: resolvedStoId,
@@ -396,7 +453,7 @@
 // }
 
 // async function getOrCreatePaket(name: string, paketByName: Map<string, string>): Promise<string> {
-//   const key = lowerKey(name);
+//   const key = lowerKey(name.replace(/\s+/g, " "));
 //   const id = paketByName.get(key);
 //   if (id) return id;
 //   if (!AUTO_CREATE_PAKET) throw new Error(`Paket '${name}' tidak ditemukan (tidak di-autocreate).`);
@@ -419,7 +476,7 @@
 //       jenis_paket: "INET_ONLY",
 //       bandwidth: bandwidth,
 //       harga: hargaClamped,
-//       harga_psb: "0.00",
+//       harga_psb: "500000",
 //       total: totalClamped,
 //       aktif: true,
 //     },
@@ -429,7 +486,7 @@
 // }
 
 // async function getPaketIdOrThrow(name: string, paketByName: Map<string, string>): Promise<string> {
-//   const key = lowerKey(name);
+//   const key = lowerKey(name.replace(/\s+/g, " "));
 //   const id = paketByName.get(key);
 //   if (id) return id;
 //   return await getOrCreatePaket(name, paketByName);
@@ -464,13 +521,33 @@
 //   const { wilayahByName, paketByName, salesByName } = await buildReferenceCaches();
 //   const salesDetails = readSalesDetails();
 
+//   // Pre-create / enrich semua SALES dari sheet 'NEW KODE SALES AGENCY' (diprioritaskan)
+//   const allSales = Array.from(salesDetails.values());
+//   if (allSales.length > 0) {
+//     const missingDatel = allSales.filter((s) => !s.datel_name).length;
+//     const missingSto = allSales.filter((s) => !s.sto_name).length;
+//     console.log(`🔧 Menyiapkan data Sales dari sheet kode (total unik: ${allSales.length})`);
+//     console.log(`ℹ️  Sales tanpa Datel: ${missingDatel}, tanpa STO: ${missingSto}`);
+//     for (const s of allSales) {
+//       try {
+//         await maybeCreateSales(s.nama, salesByName, { wilayahByName, salesDetails });
+//       } catch (e) {
+//         // lanjutkan, detail akan tetap bisa diproses saat registrasi
+//       }
+//     }
+//   }
+
 //   const toInsert: any[] = [];
 //   const skipped: { reason: string; rowIdx: number }[] = [];
 
 //   for (let i = 0; i < rows.length; i++) {
 //     const r = rows[i];
 
-//     const nama = safeString(getFirst(r, COLS.nama));
+//     let nama = safeString(getFirst(r, COLS.nama));
+//     // Jika nama numeric-only (misal '6', '108'), anggap tidak valid
+//     if (nama && /^\d+(?:[\.,]\d+)?$/.test(nama)) {
+//       nama = null;
+//     }
 //     const wilayah = safeString(getFirst(r, COLS.wilayah));
 //     const paket = safeString(getFirst(r, COLS.paket));
 //     const sales = safeString(getFirst(r, COLS.sales));
@@ -481,18 +558,13 @@
 //     const no_ktp = safeString(getFirst(r, COLS.no_ktp));
 //     const email = safeString(getFirst(r, COLS.email));
 
-//     if (!nama || !wilayah || !paket || !sales || !no_hp_1 || !alamat || !nama_pic || !ttl_pic || !no_ktp || !email) {
+//     if (!nama || !wilayah || !paket || !sales || !nama_pic) {
 //       const missing: string[] = [];
 //       if (!nama) missing.push("nama");
 //       if (!wilayah) missing.push("wilayah");
 //       if (!paket) missing.push("paket");
 //       if (!sales) missing.push("sales");
-//       if (!no_hp_1) missing.push("no_hp_1");
-//       if (!alamat) missing.push("alamat");
 //       if (!nama_pic) missing.push("nama_pic");
-//       if (!ttl_pic) missing.push("ttl_pic");
-//       if (!no_ktp) missing.push("no_ktp");
-//       if (!email) missing.push("email");
 //       skipped.push({ reason: `kolom wajib kosong: ${missing.join(", ")}` , rowIdx: i + 1 });
 //       continue;
 //     }
@@ -504,7 +576,7 @@
 
 //     try {
 //       wilayah_id = await maybeCreateWilayah(wilayah, wilayahByName);
-//       sales_id = await maybeCreateSales(sales, salesByName, { salesDetails });
+//       sales_id = await maybeCreateSales(sales, salesByName, { wilayahByName, salesDetails });
 //       paket_id = await getPaketIdOrThrow(paket, paketByName);
 //     } catch (e: any) {
 //       skipped.push({ reason: e?.message || String(e), rowIdx: i + 1 });
@@ -551,19 +623,30 @@
 //       return STATUS_AO_VALUES.has(candidate) ? (candidate as any) : null;
 //     };
 
+//     let createdAtDate: Date | null = null;
+//     let createdAtRaw: any = getFirst(r, COLS.created_at as any);
+//     if (!createdAtRaw && /form responses/i.test(SHEET_NAME)) {
+//       const vals = Object.values(r);
+//       if (vals.length >= 3) createdAtRaw = vals[2];
+//     }
+//     if (createdAtRaw) {
+//       const dt = new Date(createdAtRaw as any);
+//       if (!Number.isNaN(dt.getTime())) createdAtDate = dt;
+//     }
+
 //     const rec = {
 //       nama,
 //       wilayah_id,
 //       paket_id,
 //       sales_id,
-//       no_hp_1,
+//       no_hp_1: no_hp_1 || "",
 //       no_hp_2: safeString(getFirst(r, COLS.no_hp_2)),
 //       kordinat: safeString(getFirst(r, COLS.koordinat)) || null,
-//       alamat,
-//       nama_pic,
-//       ttl_pic,
-//       no_ktp,
-//       email,
+//       alamat: alamat || "",
+//       nama_pic: nama_pic || "",
+//       ttl_pic: ttl_pic || "",
+//       no_ktp: no_ktp || "",
+//       email: email || "",
 //       nomer_ao: safeString(getFirst(r, COLS.nomer_ao)) || null,
 //       status: mapStatusAo(safeString(getFirst(r, COLS.status))),
 //       foto_ktp: safeString(getFirst(r, COLS.foto_ktp)) || "",
@@ -571,12 +654,27 @@
 //       bukti_usaha: safeString(getFirst(r, COLS.bukti_usaha)) || "",
 //       bukti_niwp: safeString(getFirst(r, COLS.bukti_niwp)) || "",
 //       foto_lokasi: safeString(getFirst(r, COLS.foto_lokasi)) || null,
-//     };
+//       created_at: createdAtDate || undefined,
+//     } as any;
 
 //     toInsert.push(rec);
 //   }
 
 //   console.log(`➡️  Siap insert: ${toInsert.length}, dilewati: ${skipped.length}`);
+
+//   // Ringkasan agregat alasan skip (histogram)
+//   if (skipped.length > 0) {
+//     const buckets = new Map<string, number>();
+//     for (const s of skipped) {
+//       buckets.set(s.reason, (buckets.get(s.reason) || 0) + 1);
+//     }
+//     const top = Array.from(buckets.entries())
+//       .sort((a, b) => b[1] - a[1])
+//       .slice(0, 10)
+//       .map(([reason, count]) => `- ${count}x: ${reason}`)
+//       .join("\n");
+//     console.log(`📊 Top alasan skip (10 teratas):\n${top}`);
+//   }
 
 //   if (toInsert.length > 0) {
 //     if (DRY_RUN) {
@@ -599,7 +697,7 @@
 
 //   if (skipped.length > 0) {
 //     const preview = skipped.slice(0, 20).map((s) => `row ${s.rowIdx}: ${s.reason}`).join("\n");
-//     console.log(`Ringkasan skip (${skipped.length}):\n${preview}${skipped.length > 20 ? "\n..." : ""}`);
+//     console.log(`Ringkasan skip (contoh 20 dari ${skipped.length}):\n${preview}${skipped.length > 20 ? "\n..." : ""}`);
 //   }
 // }
 

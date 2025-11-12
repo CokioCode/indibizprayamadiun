@@ -11,6 +11,7 @@ export const registrasiIndibizController = {
   index: asyncHandler(async (c: Context): Promise<Response> => {
     const page = parseInt(c.req.query("page") || "1");
     const limit = parseInt(c.req.query("limit") || "5");
+    const q = c.req.query("q") || undefined;
 
     const { page: validPage, limit: validLimit } =
       PaginationHelper.validatePaginationParams(page, limit);
@@ -18,6 +19,7 @@ export const registrasiIndibizController = {
     const result = await RegistrasiIndibizModel.index({
       page: validPage,
       limit: validLimit,
+      q,
     });
     const meta = PaginationHelper.createMeta(
       validPage,

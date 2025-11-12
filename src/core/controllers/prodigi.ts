@@ -9,8 +9,9 @@ export const prodigiController = {
   index: asyncHandler(async (c: Context): Promise<Response> => {
     const page = parseInt(c.req.query("page") || "1");
     const limit = parseInt(c.req.query("limit") || "10");
+    const q = c.req.query("q") || undefined;
     const { page: p, limit: l } = PaginationHelper.validatePaginationParams(page, limit);
-    const result = await ProdigiModel.index({ page: p, limit: l });
+    const result = await ProdigiModel.index({ page: p, limit: l, q });
     const meta = PaginationHelper.createMeta(p, l, result.total);
     return ResponseHelper.paginated(c, result.data, meta, "Berhasil mengambil daftar prodigi");
   }),

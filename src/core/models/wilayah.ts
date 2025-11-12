@@ -1,4 +1,5 @@
-import prisma from "../../integrations/prisma/index.js";
+  import prisma from "../../integrations/prisma/index.js";
+import { Prisma } from "@prisma/client";
 import {
   BadRequestError,
   NotFoundError,
@@ -6,13 +7,33 @@ import {
 } from "../../shared/utils/error.js";
 
 export const WilayahModel = {
-  async index({ page = 1, limit = 5 }: { page?: number; limit?: number } = {}) {
+  async index({ page = 1, limit = 5, q }: { page?: number; limit?: number; q?: string } = {}) {
     try {
       const skip = (page - 1) * limit;
+      const where = q
+        ? {
+            OR: [
+              { nama: { contains: q, mode: Prisma.QueryMode.insensitive } },
+              {
+                stos: {
+                  some: {
+                    sto: {
+                      OR: [
+                        { name: { contains: q, mode: Prisma.QueryMode.insensitive } },
+                        { abbreviation: { contains: q, mode: Prisma.QueryMode.insensitive } },
+                      ],
+                    },
+                  },
+                },
+              },
+            ],
+          }
+        : undefined;
       const [data, total] = await Promise.all([
         prisma.wilayah.findMany({
           skip,
           take: limit,
+          where,
           orderBy: { created_at: "desc" },
           include: {
             stos: {
@@ -28,7 +49,7 @@ export const WilayahModel = {
             },
           },
         }),
-        prisma.wilayah.count(),
+        prisma.wilayah.count({ where }),
       ]);
       return {
         data,

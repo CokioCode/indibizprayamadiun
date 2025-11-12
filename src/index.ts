@@ -9,7 +9,8 @@ const app = new Hono();
 app.use(
   "*",
   cors({
-    origin: "https://indibizrayamadiun.vercel.app",
+    // origin: "https://indibizrayamadiun.vercel.app",
+    origin: "http://localhost:3000",
     allowMethods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowHeaders: ["Content-Type", "Authorization"],
     credentials: true,

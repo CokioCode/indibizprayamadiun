@@ -1,4 +1,5 @@
 import prisma from "../../integrations/prisma/index.js";
+import { Prisma } from "@prisma/client";
 import { StoAgencInput } from "../../shared/types/sto.js";
 import {
   BadRequestError,
@@ -7,16 +8,24 @@ import {
 } from "../../shared/utils/error.js";
 
 export const StoModel = {
-  async index({ page = 1, limit = 5 }: { page?: number; limit?: number } = {}) {
+  async index({ page = 1, limit = 5, q }: { page?: number; limit?: number; q?: string } = {}) {
     try {
       const skip = (page - 1) * limit;
+      const where = q
+        ? {
+            OR: [
+              { name: { contains: q, mode: Prisma.QueryMode.insensitive } },
+              { abbreviation: { contains: q, mode: Prisma.QueryMode.insensitive } },
+            ],
+          }: undefined;
       const [data, total] = await Promise.all([
         prisma.sto.findMany({
           skip,
           take: limit,
+          where,
           orderBy: { created_at: "desc" },
         }),
-        prisma.sto.count(),
+        prisma.sto.count({ where }),
       ]);
       return {
         data,

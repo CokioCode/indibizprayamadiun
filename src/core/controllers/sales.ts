@@ -15,6 +15,7 @@ export const salesController = {
   index: asyncHandler(async (c: Context): Promise<Response> => {
     const page = parseInt(c.req.query("page") || "1");
     const limit = parseInt(c.req.query("limit") || "5");
+    const q = c.req.query("q") || undefined;
 
     const { page: validPage, limit: validLimit } =
       PaginationHelper.validatePaginationParams(page, limit);
@@ -22,6 +23,7 @@ export const salesController = {
     const result = await SalesModel.index({
       page: validPage,
       limit: validLimit,
+      q,
     });
     const meta = PaginationHelper.createMeta(
       validPage,

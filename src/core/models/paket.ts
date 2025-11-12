@@ -1,24 +1,35 @@
 import { prisma } from "../../integrations/index.js";
+import { Prisma } from "@prisma/client";
 import { ConflictError, NotFoundError, BadRequestError } from "../../shared/index.js";
 import { PaketInputCreate, PaketInputUpdate } from "../../shared/types/paket.js";
 import { computeEffectivePrice } from "../services/pricing.js";
 
 export const PaketModel = {
-  async index({ page = 1, limit = 5 }: { page?: number; limit?: number } = {}) {
+  async index({ page = 1, limit = 5, q }: { page?: number; limit?: number; q?: string } = {}) {
     try {
       const skip = (page - 1) * limit;
       const now = new Date();
+      const where = q
+        ? {
+            OR: [
+              { nama: { contains: q, mode: Prisma.QueryMode.insensitive } },
+              { kode: { contains: q, mode: Prisma.QueryMode.insensitive } },
+              { prodigis: { some: { nama: { contains: q, mode: Prisma.QueryMode.insensitive } } } },
+            ],
+          }
+        : undefined;
       const [rows, total, globalPromos] = await Promise.all([
         prisma.paket.findMany({
           skip,
           take: limit,
+          where,
           include: {
             prodigis: true,
             promo_pakets: { include: { promo: true } },
           },
           orderBy: { created_at: "desc" },
         }),
-        prisma.paket.count(),
+        prisma.paket.count({ where }),
         prisma.promo.findMany({
           where: {
             is_global: true,

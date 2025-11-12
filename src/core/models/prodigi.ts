@@ -1,17 +1,24 @@
 import { prisma } from "../../integrations/index.js";
+import { Prisma } from "@prisma/client";
 import { BadRequestError, ConflictError, NotFoundError } from "../../shared/index.js";
 import { ProdigiInputCreate, ProdigiInputUpdate } from "../../shared/types/prodigi.js";
 
 export const ProdigiModel = {
-  async index({ page = 1, limit = 10 }: { page?: number; limit?: number } = {}) {
+  async index({ page = 1, limit = 10, q }: { page?: number; limit?: number; q?: string } = {}) {
     const skip = (page - 1) * limit;
+    const where = q
+      ? {
+          nama: { contains: q, mode: Prisma.QueryMode.insensitive },
+        }
+      : undefined;
     const [data, total] = await Promise.all([
       prisma.prodigi.findMany({
         skip,
         take: limit,
+        where,
         orderBy: { created_at: "desc" },
       }),
-      prisma.prodigi.count(),
+      prisma.prodigi.count({ where }),
     ]);
     return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   },
